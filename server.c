@@ -13,6 +13,14 @@
 #define PORT_NUM_BIN    8889
 #define MAX_EVENTS 1
 
+/*Esto en el .h*/
+struct args_epoll_monitor {
+        int epollfd;
+        int sockfd;
+        struct epoll_event* evlist;
+    };
+
+
 /*Crea un socket TCP en dominio IPv4*/
 /*Retorna un fd que representa nuestro socket y al cual se conectarán los clientes.*/
 void sock_creation(int* sockfd){
@@ -49,30 +57,43 @@ void epoll_add(int sockfd, int epollfd){
     
     struct epoll_event ev;
     ev.data.fd = sockfd;
-    ev.events = EPOLLIN;
+    ev.events = EPOLLIN || EPOLLONESHOT; /*Acordarse de volver a activar el fd luego de atenderlo*/
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
     return;
 }
 
-//void epoll_monitor(int epollfd, struct epoll_event* evlist)
+/*void* epoll_monitor(struct args_epoll_monitor* args)*/
 void* epoll_monitor(void* args){
+    
+    struct args_epoll_monitor* e_m_struct;
+    e_m_struct = (struct args_epoll_monitor*) args;
+    int fdready;
+
+
 
     while(1){
         /*Retorna los fd listos para intercambio de datos*/
-        epoll_wait(epollfd, evlist, MAX_EVENTS, -1);
+        fdready = epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, -1);
 
-        /*Hay que diferenciar entre nuevas conexiones y pedidos de clientes ya aceptados*/
-
+        ///*Hay que diferenciar entre nuevas conexiones y pedidos de clientes ya aceptados*/
+        //if (e_m_struct->evlist->data.fd == e_m_struct->sockfd){
+        //    new_client(e_m_struct->evlist->data.fd);
+        //}
+        //else{
+        //    ;
+        //}
     }
-    return; 
+    return NULL; 
+}
+
+new_client(int sockfd){
 
 }
+/*Esta función pasa a llamarse serv_init() y es la encargada de prender/manejar el server*/
 int main (int argc, char* argv[]){
 
-    //fd de socket
-    int sockfd; 
-    int sockconnect;
+    int sockfd; /*Este seria el socket de texto actualmente*/
     int epollfd;
 
     /*Crea el socket y devuelve su fd ya bindeado y en escucha*/
@@ -81,18 +102,22 @@ int main (int argc, char* argv[]){
     /*Inicia la instancia de epoll y devuelve el fd que hace referencia a la misma*/
     epoll_initiate(&epollfd);
 
+    /*Añade el fd del socket creado a la instancia de epoll para monitorearlo.*/
+    epoll_add(sockfd, epollfd);
+
     /*Inicializa la lista de los fd listos*/
     struct epoll_event* evlist = malloc(sizeof(struct epoll_event) * MAX_EVENTS);
     int cores = sysconf(_SC_NPROCESSORS_CONF);
 
     pthread_t t[cores];
 
-    /*Ver como pasar argumentos a epoll_monitor*/
-    void* args = malloc(sizeof(struct epoll_event)*2);
-    
+    struct args_epoll_monitor args;
+    args.epollfd = epollfd;
+    args.evlist = evlist;
+    args.sockfd = sockfd;
 
     for (int i = 0; i < cores; i++)
-        pthread_create(t[i], NULL, epoll_monitor, NULL);
+        pthread_create(&t[i], NULL, epoll_monitor, &args);
 
     
     return 0;
