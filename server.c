@@ -55,9 +55,20 @@ void epoll_initiate(int* epollfd){
 /*Añade los fd a la instancia de epoll para monitorearlos*/
 void epoll_add(int sockfd, int epollfd){
     
+    /*Ajustamos la configuracion de cada fd a agregar a la instancia de epoll*/
+    /*Como banderas:*/
+    /*EPOLLIN: Avisa cuando hay datos para lectura disponibles*/
+    /*EPOLLONESHOT: Una vez que nos avisa de un acontencimiento, 
+        no nos avisa más hasta que volvamos a activarlo.
+        Acordarse de volver a activarlo con epoll_ctl(epollfd, EPOLL_CTL_MOD. sockfd, &ev).*/
+    /*EPOLLET: Activa las notificaciones Edge-Triggered las cuales solo nos dicen si hubo actividad 
+        en un fd a monitorear DESDE la llamada anterior a epoll_wait. 
+        Si desde que llamamos a epoll_wait() por primera vez no pasó nada más. 
+        Cuando llamemos a epoll_wait() por segunda vez no nos devolverá nada y se bloqueará
+        ya que no hubo nuevo input desde la primer llamada.*/
     struct epoll_event ev;
     ev.data.fd = sockfd;
-    ev.events = EPOLLIN || EPOLLONESHOT; /*Acordarse de volver a activar el fd luego de atenderlo*/
+    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLET;
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
     return;
@@ -74,7 +85,14 @@ void* epoll_monitor(void* args){
 
     while(1){
         /*Retorna los fd listos para intercambio de datos*/
-        fdready = epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, -1);
+        /*No se bloquea ya que utilizamos notificaciones Edge-Triggered*/
+        /*La idea es que los hilos checkeen si hay disponibles fd, si hay un hilo irá a 
+            atender a ese cliente y las siguientes llamadas a epoll_wait no avisaran de este fd.
+            La bandera EPOLLONESHOT ayuda a esto haciendo que no aparezca en la lista de ready 
+            devuelta por epoll_wait en el caso de tener nuevo input que ya está siendo 
+            atendida por un hilo. Ese hilo debe volver a activar las notificaciones de
+            ese cliente.*/
+        fdready = epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, 0);
 
         ///*Hay que diferenciar entre nuevas conexiones y pedidos de clientes ya aceptados*/
         //if (e_m_struct->evlist->data.fd == e_m_struct->sockfd){
@@ -94,7 +112,7 @@ new_client(int sockfd){
 int main (int argc, char* argv[]){
 
     int sockfd; /*Este seria el socket de texto actualmente*/
-    int epollfd;
+    int epollfd; /*fd referente a la instancia de epoll*/
 
     /*Crea el socket y devuelve su fd ya bindeado y en escucha*/
     sock_creation(&sockfd);
