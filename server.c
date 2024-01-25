@@ -17,6 +17,8 @@
 struct args_epoll_monitor {
         int epollfd;
         int sockfd;
+        int fdready; //Retorno de epoll_wait.
+        pthread_mutex_t mutex;
         struct epoll_event* evlist;
     };
 
@@ -54,7 +56,6 @@ void epoll_initiate(int* epollfd){
 
 /*Añade los fd a la instancia de epoll para monitorearlos*/
 void epoll_add(int sockfd, int epollfd){
-    
     /*Ajustamos la configuracion de cada fd a agregar a la instancia de epoll*/
     /*Como banderas:*/
     /*EPOLLIN: Avisa cuando hay datos para lectura disponibles*/
@@ -64,13 +65,33 @@ void epoll_add(int sockfd, int epollfd){
     /*EPOLLET: Activa las notificaciones Edge-Triggered las cuales solo nos dicen si hubo actividad 
         en un fd a monitorear DESDE la llamada anterior a epoll_wait. 
         Si desde que llamamos a epoll_wait() por primera vez no pasó nada más. 
-        Cuando llamemos a epoll_wait() por segunda vez no nos devolverá nada y se bloqueará
-        ya que no hubo nuevo input desde la primer llamada.*/
+        Cuando llamemos a epoll_wait() por segunda vez no nos devolverá nada y actua en base a la bandera de timeout*/
+    /*EPOLLRDHUP: Se activa cuando un cliente corta la conexión*/
     struct epoll_event ev;
+    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLET| EPOLLRDHUP;
     ev.data.fd = sockfd;
-    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLET;
+
+    /*Checkear si viene de un socket texto o binario. Texto = 0, Binario = 1* <- preguntar como usar*/
+    //ev.data.u32 = 0;
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
+    return;
+}
+
+/*Funcion que se encarga de añadir un nuevo cliente*/
+void new_client(int sockfd,int epollfd, int* client_sockfd){
+    /*Aceptamos al nuevo cliente.*/
+    *client_sockfd = accept(sockfd, NULL, 0); //El hilo aqui se bloquea, ver timeout?
+    assert(*client_sockfd != -1);
+
+    /*Reactivamos el fd para monitoreo (EPOLLONESHOT activado)*/
+    struct epoll_event ev;
+    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLET | EPOLLRDHUP;
+    ev.data.fd = sockfd;
+
+    epoll_ctl(epollfd, EPOLL_CTL_MOD, sockfd, &ev);
+
+    printf("Acepto a: %d\n", *client_sockfd);
     return;
 }
 
@@ -79,11 +100,9 @@ void* epoll_monitor(void* args){
     
     struct args_epoll_monitor* e_m_struct;
     e_m_struct = (struct args_epoll_monitor*) args;
-    int fdready;
-
-
 
     while(1){
+
         /*Retorna los fd listos para intercambio de datos*/
         /*No se bloquea ya que utilizamos notificaciones Edge-Triggered*/
         /*La idea es que los hilos checkeen si hay disponibles fd, si hay un hilo irá a 
@@ -92,22 +111,44 @@ void* epoll_monitor(void* args){
             devuelta por epoll_wait en el caso de tener nuevo input que ya está siendo 
             atendida por un hilo. Ese hilo debe volver a activar las notificaciones de
             ese cliente.*/
-        fdready = epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, 0);
+        pthread_mutex_lock(&e_m_struct->mutex);
+        e_m_struct->fdready = epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, 0);
 
-        ///*Hay que diferenciar entre nuevas conexiones y pedidos de clientes ya aceptados*/
-        //if (e_m_struct->evlist->data.fd == e_m_struct->sockfd){
-        //    new_client(e_m_struct->evlist->data.fd);
-        //}
-        //else{
-        //    ;
-        //}
+        /*Tenemos un fd disponible para lectura.*/
+        /*Notar que esta es una región crítica, debemos asegurarla así un solo hilo atiende a un cliente.*/
+        /*La podemos asegurar con un mutex*/
+        if (e_m_struct->fdready){
+             e_m_struct->fdready--; /*Atenderemos al cliente*/
+             pthread_mutex_unlock(&e_m_struct->mutex);
+        
+            /*Verificar la presencia de EPOLLHUP o EPOLLER en cuyo caso hay que cerrar el fd*/
+            if ((e_m_struct->evlist->events & EPOLLRDHUP) 
+                || (e_m_struct->evlist->events & EPOLLERR)
+                || (e_m_struct->evlist->events & EPOLLHUP)){
+                close(e_m_struct->evlist->data.fd);
+            }
+            else{
+                printf("No es un cliente desconectado\n");
+                /*Si es el fd del socket del server debemos atender a un nuevo cliente.*/
+                if (e_m_struct->evlist->data.fd == e_m_struct->sockfd){
+                    printf("Es un nuevo cliente\n");
+                    int client_sockfd;
+                    /*Aceptamos al nuevo cliente*/
+                    new_client(e_m_struct->evlist->data.fd, e_m_struct->epollfd ,&client_sockfd);
+                    /*Lo añadimos a la instancia de epoll para monitorearlo.*/
+                    epoll_add(client_sockfd, e_m_struct->epollfd);
+                }
+                else{
+                    /*Este cliente no es nuevo por lo que nos hará consultas.*/
+                    /*Hacer un if para diferenciar entre cliente de texto y binario mediante el data.u32*/    
+                }   
+            }
+        }
+        else{pthread_mutex_unlock(&e_m_struct->mutex);}
     }
     return NULL; 
 }
 
-new_client(int sockfd){
-
-}
 /*Esta función pasa a llamarse serv_init() y es la encargada de prender/manejar el server*/
 int main (int argc, char* argv[]){
 
@@ -133,9 +174,14 @@ int main (int argc, char* argv[]){
     args.epollfd = epollfd;
     args.evlist = evlist;
     args.sockfd = sockfd;
-
-    for (int i = 0; i < cores; i++)
+    args.fdready = 0; //Retorno de epoll_wait
+    for (int i = 0; i < cores; i++){
         pthread_create(&t[i], NULL, epoll_monitor, &args);
+    }
+    for(int i = 0; i < cores; i++)
+        pthread_join(t[i], NULL);
+
+    /*Capturar señal SIGPIPE*/
 
     
     return 0;
