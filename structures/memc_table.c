@@ -1,87 +1,64 @@
 #include "memc_node.h"
 #include "memc_table.h"
-#include "utils.h"
+#include <stdlib.h>
 
-table_t* table_init(size_t buckets) {
-  table_t* new_table = malloc(sizeof(table_t));
+table_t table_init(unsigned buckets) {
 
-  if (!new_table)
-    return NULL;
+  table_t table = malloc(sizeof(node_t*) * buckets);
 
-  new_table->table = malloc(sizeof(node_t*) * buckets);
-
-  if (!new_table->table) {
-    free(new_table);
-    return NULL;
-  }
-
-  new_table->buckets = buckets;
-  new_table->elements = 0; 
-
-  return new_table;
+  return table;
 }
 
-void table_destroy(table_t* tab) {
-  for (unsigned int i = 0; i < tab->elements; i++)
-    node_free(tab->buckets[i])
+void table_destroy(table_t tab, unsigned elements) {
+  for (unsigned i = 0; i < elements; i++)
+    node_frees(HASH, tab[i]);
   free(tab);
 }
 
-node_t* table_insert(
-    table_t*          tbl,
-    void*             key,
-    unsigned          len_key,
-    void*             data,
-    unsigned          len_data,
-    mode_t            md
-    ) {
+node_t* table_insert(table_t tbl, node_t* new_node, unsigned i) {
 
-  node_t* new_node; 
-  unsigned i = hash_len((char*)key, key_len) % hstb->buckets;
-
-  if (!tbl->table[i]) {
-    if (!(new_node = node_init(key, data, len_key, len_data,md)))
-       return NULL;
-    tbl->table[i] = new_node;
-  }
-  else {
-    if (!(new_node = node_search(tbl->table[i], key , key_len))) {
-      node_addhd(HASH, new_node ,tbl->table[i]);
-      return nwe_node;
-    }
-    if(!(node_newdata(new_node, data, len_data)))
-      return NULL;
-  }
+  if (!tbl[i]) 
+    tbl[i] = new_node;
+  else 
+    node_addhd(HASH, new_node ,tbl[i]);
   return new_node;
 }
 
-node_t* table_search(
-
-    table_t*          tb,
+int table_search(
+    table_t            tb,
     void*             key,
-    size_t            len,
-    void*             data,
-    unsigned*         data_len
-
+    unsigned          len,
+    unsigned            i,
+    node_t*           ret
     ) {
 
-  unsigned i = hash_len((char*)key, key_len) % hstb->buckets;
-  node_t* ret = node_search(tbl->table[i]);
+  ret = node_search(tb[i], key, len, HASH);
 
-  if (ret)
-    *data_len = node_cpydata(ret, data);
+  if (!ret) {
+    ret = tb[i];
+    return -1;
+  } 
 
-  return ret 
+  return 0; 
 }
 
-void table_delete(table_t* tbl, void* key, unsigned key_len) {
+int table_rehash(
+    table_t tb,
+    unsigned old_size,
+    unsigned new_size,
+    unsigned (*hash)(void*,unsigned)
+    ) {
 
-  unsigned i = hash_len((char*)key, key_len) % hstb->buckets;
-  node_t* ret = node_search(tbl->table[i]);
+  void* buff;
+  table_t temp = tb;
+  tb = table_init(new_size);
 
-  if (ret)
-    node_discc(HASH, ret);
-
-  return ret;
+  for(unsigned i = 0; i < old_size; i++) {
+    node_t* tbi = temp[i];
+    while((temp[i] = node_arrow(tbi, HASH, RIGHT))) {
+      node_discc(HASH, tbi);
+      table_insert(tb, tbi, hash(buff, node_getkey(tbi, buff)));
+    }
+  }
+  return 0;
 }
-

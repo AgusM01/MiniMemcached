@@ -2,38 +2,27 @@
 #define __MEMC_TABLE__
 #include "memc_node.h"
 
-struct _MemcTable {
-  node_t**            table;
-  size_t              buckets;
-  size_t              elements;
-};
+typedef node_t** table_t;
 
-typedef struct _MemcTable table_t;
+table_t table_init(unsigned buckets);
 
-table_t* table_init(int buckets);
+void table_destroy(table_t table, unsigned elements);
 
-void table_destroy(table_t* table);
+node_t* table_insert(table_t tbl, node_t* new_node, unsigned i);
 
-void table_delete(table_t* tbl, node_t* node);
-
-void table_insert(
-    table_t*        tbl,
-    void*             key,
-    unsigned int  len_key,
-    void*            data,
-    unsigned int len_data,
-    mode_t md
+int table_search(
+    table_t              tb,
+    void*               key,
+    unsigned            len,
+    unsigned              i,
+    node_t*             ret
 );
 
-node_t* table_search(
-
-    table_t*          tb,
-    void*             key,
-    size_t            len,
-    void*             data,
-    unsigned*         data_len
-
+int table_rehash(
+    table_t tb,
+    unsigned old_size,
+    unsigned new_size,
+    unsigned (*hash)(void*,unsigned)   
 );
-
 
 #endif
