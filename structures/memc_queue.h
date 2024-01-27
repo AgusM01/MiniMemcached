@@ -1,13 +1,10 @@
 #ifndef __MEMC__QUEUE__
 #define __MEMC__QUEUE__
-
 #include "memc_node.h"
 
-struct _MemcQueue {
- node_t* mru, lru;
-};
+struct __MemcQueue;
 
-typedef struct _MemcQueue queue_t;
+typedef struct __MemcQueue queue_t;
 
 queue_t* queue_init();
 
