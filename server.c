@@ -95,6 +95,13 @@ void new_client(int sockfd,int epollfd, int* client_sockfd){
     return;
 }
 
+void manage_client(int clientfd, int epollfd){
+    /*Cantidad de comandos que tendrá el pedido*/
+    int cant_com; 
+    /*text_parser(client_fd, buf)*/
+    /*En teoria ahora buf tiene el texto a parsear*/
+}
+
 /*void* epoll_monitor(struct args_epoll_monitor* args)*/
 void* epoll_monitor(void* args){
     
@@ -133,14 +140,18 @@ void* epoll_monitor(void* args){
                 if (e_m_struct->evlist->data.fd == e_m_struct->sockfd){
                     printf("Es un nuevo cliente\n");
                     int client_sockfd;
+
                     /*Aceptamos al nuevo cliente*/
                     new_client(e_m_struct->evlist->data.fd, e_m_struct->epollfd ,&client_sockfd);
+
                     /*Lo añadimos a la instancia de epoll para monitorearlo.*/
                     epoll_add(client_sockfd, e_m_struct->epollfd);
                 }
                 else{
                     /*Este cliente no es nuevo por lo que nos hará consultas.*/
-                    /*Hacer un if para diferenciar entre cliente de texto y binario mediante el data.u32*/    
+                    /*Hacer un if para diferenciar entre cliente de texto y binario mediante el data.u32*/  
+
+                    manage_client(e_m_struct->evlist->data.fd, e_m_struct->epollfd);  
                 }   
             }
         }
