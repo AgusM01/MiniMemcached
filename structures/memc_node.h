@@ -31,11 +31,11 @@ void node_frees(int hq, node_t* node);
 
 node_t* node_search(node_t* node, void* key, unsigned int len, mod_t hq);
 
-int node_getdata(node_t* node, void* buff);
+int node_getdata(node_t* node, void** buff);
 
 void node_setdata(node_t* node, void* buff, unsigned len);
 
-int node_getkey(node_t* node, void* buff);
+int node_getkey(node_t* node, void** buff);
 
 void node_setkey(node_t* node, void* buff, unsigned len);
 
@@ -47,5 +47,5 @@ node_t* node_arrow(node_t* node, int hq, dir_t dir);
 
 void node_discc(int hq, node_t* node);
 
-int node_addhd(int hq, node_t* node, node_t* hd);
+int node_addhd(int hq, node_t* node, node_t* head);
 #endif

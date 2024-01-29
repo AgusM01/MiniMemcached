@@ -1,5 +1,6 @@
 #include "memc_node.h"
 #include "memc_queue.h"
+#include <complex.h>
 #include <stdlib.h>
 
 struct __MemcQueue {
@@ -7,6 +8,7 @@ struct __MemcQueue {
  node_t* lru;
 };
 
+/* Tested */
 queue_t* queue_init() {
   queue_t* new_queue = malloc(sizeof(queue_t));
   if (!new_queue)
@@ -16,10 +18,21 @@ queue_t* queue_init() {
   return new_queue;
 }
 
+/* Tested */
+int queue_empty(queue_t* queue) {
+  int ret = 0;
+  if (!queue->lru) { 
+      ret = -1;
+  }
+  return ret;
+}
+
+/* Tested */
 void queue_destroy(queue_t* queue) {
   free(queue);
 }
 
+/* Tested */
 void queue_addmru(queue_t *queue, node_t *node) {
   if (!queue->mru) {
     queue->mru = node;
@@ -27,19 +40,27 @@ void queue_addmru(queue_t *queue, node_t *node) {
     return;
   }
   node_addhd(QUEUE, node, queue->mru);
+  queue->mru = node;
 }
 
+/* Tested */
 void queue_delnode(node_t *node) {
  node_discc(QUEUE, node); 
 }
 
+/* Tested */
 node_t* queue_dqlru(queue_t* queue) {
   if (!queue->lru)
     return NULL;
 
   node_t* temp = queue->lru;
 
-  queue->lru = node_arrow(temp, QUEUE, LEFT); 
-  node_discc(QUEUE, temp);
+  if (queue->lru == queue->mru) {
+    queue->lru = queue->mru = NULL;  
+  } else {
+    queue->lru = node_arrow(temp, QUEUE, LEFT); 
+    node_discc(QUEUE, temp);
+  }
+
   return temp;
 }

@@ -1,8 +1,17 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "memc_node.h"
 
+/*!
+ *
+ */
 
+/*! Nodo principal 
+ *  
+ *  Este nodo contiene los datos guardados en memoria.
+ *  Son las bases de la tabla hash y la cola de prioridad 
+ */
 struct __MemcNode {
   void*                   key_buff;
   void*                  data_buff;
@@ -12,6 +21,7 @@ struct __MemcNode {
   mode_t                      mode;    
 };
 
+/*Tested*/
 node_t* node_init(
     void*                   key,
     void*                  data,
@@ -25,12 +35,12 @@ node_t* node_init(
   if (!newnode)
     return NULL;
 
-  if (!(newnode->data_buff = malloc(len_key))) {
+  if (!(newnode->data_buff = malloc(len_data))) {
     free(newnode);
     return NULL;
   }
 
-  if (!(newnode->key_buff = malloc(len_data))) {
+  if (!(newnode->key_buff = malloc(len_key))) {
     free(newnode->data_buff);
     free(newnode);
     return NULL;
@@ -39,14 +49,15 @@ node_t* node_init(
   memcpy(newnode->data_buff, data,  len_data);
   memcpy(newnode->key_buff, key, len_key);
 
-  newnode->data_len = 0;
-  newnode->key_len = 0;
+  newnode->data_len = len_data;
+  newnode->key_len = len_key;
   newnode->mode = md;
   for(int i = 0; i < 4 ; i++) 
     newnode->arrows[i] = NULL;
   return newnode;
 }
 
+/*Tested*/
 void node_free(node_t* node) {
   free(node->data_buff);
   free(node->key_buff);
@@ -77,8 +88,9 @@ node_t* node_search(node_t* node, void* key, unsigned int len, mod_t hq) {
   return temp;
 }
 
-int node_getdata(node_t* node, void* buff) {
-  buff = node->data_buff;
+/*Tested*/
+int node_getdata(node_t* node, void** buff) {
+  *buff = node->data_buff;
   return node->data_len;
 }
 
@@ -92,8 +104,9 @@ void node_setdata(node_t* node, void* buff, unsigned len) {
   node->data_len = len;
 }
 
-int node_getkey(node_t* node, void* buff) {
-  buff = node->key_buff;
+/*Tested*/
+int node_getkey(node_t* node, void** buff) {
+  *buff = node->key_buff;
   return node->key_len;
 }
 
@@ -110,16 +123,18 @@ mod_t node_getmode(node_t* node) {
   return node->mode;
 }
 
+/*Tested para queue*/
 node_t* node_arrow(node_t* node, int hq, dir_t dir) {
   return node->arrows[hq + dir];
 }
 
-int node_addhd(int hq, node_t* node, node_t* hd) {
-  if (!hd->arrows[hq + LEFT])
+/*Tested para queue*/
+int node_addhd(int hq, node_t* node, node_t* head) {
+  if (head->arrows[hq + LEFT])
     return -1;
 
-  hd->arrows[hq + LEFT] = node;
-  node->arrows[hq + RIGHT] = hd;
+  head->arrows[hq + LEFT] = node;
+  node->arrows[hq + RIGHT] = head;
   return 0;
 }
 
@@ -134,14 +149,15 @@ int node_newdata(node_t* node, void* data, int len_data) {
   return 0;
 }
 
+/*Tested*/
 void node_discc(int hq, node_t* node) {
   if (node->arrows[hq + LEFT]) {
-    node->arrows[hq + LEFT]->arrows[hq + RIGHT] = node->arrows[hq + LEFT];
-    node->arrows[hq + LEFT] = NULL;
+    node->arrows[hq + LEFT]->arrows[hq + RIGHT] = node->arrows[hq + RIGHT];
   }
 
   if (node->arrows[hq + RIGHT]) {
-    node->arrows[hq + RIGHT]->arrows[hq + LEFT] = node->arrows[hq + RIGHT]; 
-    node->arrows[hq + LEFT] = NULL;
+    node->arrows[hq + RIGHT]->arrows[hq + LEFT] = node->arrows[hq + LEFT]; 
   }
+
+  node->arrows[hq + LEFT] = node->arrows[hq + RIGHT] = NULL;
 }
