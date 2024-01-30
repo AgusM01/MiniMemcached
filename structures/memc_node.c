@@ -64,17 +64,19 @@ void node_free(node_t* node) {
   free(node);
 }
 
+/*Tested*/
 void node_frees(int hq, node_t* node) {
   node_t* temp = node;
-  node_t* next = node->arrows[hq + LEFT];
+  node_t* next = node->arrows[hq + RIGHT];
   node_free(node); 
-  while(!next) {
+  while(next) {
     temp = next;
-    next = next->arrows[hq + LEFT];
+    next = next->arrows[hq + RIGHT];
     node_free(temp);
   }
 }
 
+/*Tested*/
 node_t* node_search(node_t* node, void* key, unsigned int len, mod_t hq) {
   node_t* temp = node;
 
@@ -82,7 +84,7 @@ node_t* node_search(node_t* node, void* key, unsigned int len, mod_t hq) {
     temp &&                          
     (temp->key_len != len || 
     memcmp(temp->key_buff, key, len)); 
-    temp = temp->arrows[hq + LEFT]
+    temp = temp->arrows[hq + RIGHT]
   );
 
   return temp;
@@ -123,12 +125,12 @@ mod_t node_getmode(node_t* node) {
   return node->mode;
 }
 
-/*Tested para queue*/
+/*Tested*/
 node_t* node_arrow(node_t* node, int hq, dir_t dir) {
   return node->arrows[hq + dir];
 }
 
-/*Tested para queue*/
+/*Tested*/
 int node_addhd(int hq, node_t* node, node_t* head) {
   if (head->arrows[hq + LEFT])
     return -1;

@@ -1,8 +1,10 @@
 #include "memc_node.h"
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "memc_queue.h"
+#include "memc_table.h"
 
 void imprimr_nodo(node_t* node) {
     char* buff = NULL; // malloc(sizeof(char) * 10);
@@ -17,14 +19,9 @@ void imprimr_nodo(node_t* node) {
     printf("Key:%s.\nLen:%d.\n", buff,n);
 }
 
-int main() {
+/*int queue_test() {
     char texto[10] = "Holatengo";
     char clave[4]  = "key";
-
-    node_t* nodo = node_init(clave, texto, 4, 10, 1);
-    assert(nodo);
-
-    node_free(nodo);
 
     queue_t* cola = queue_init();
 
@@ -56,5 +53,49 @@ int main() {
     queue_destroy(cola);
 
     
+    return 0;
+}*/
+
+int main(){
+
+    node_t* nodes[10];
+        
+    char key[6] = "Node0";
+
+    char data[2] = "a";
+
+    int buckets = 10; 
+
+    table_t tab = table_init(10);
+
+    //char* buff = NULL;
+
+    node_t* temp = NULL;
+    
+    unsigned j = 0;
+
+    for (int i = 0; i < 10; i++) {
+        nodes[i] = node_init(key,data,6,2,1);
+        j = hash_len(key, 5) % buckets;
+        imprimr_nodo(nodes[i]);
+        printf("table --> %d\n",j);
+        table_insert(tab, nodes[i], 4);
+        key[4]++;
+        key[3]++;
+        data[0]++;
+    }
+
+    assert(!table_search(tab, "Nodi4", 6, 4,&temp));
+    imprimr_nodo(temp);
+
+    table_rehash(&tab, buckets, buckets * 2, (HasFunc) hash_len);
+
+    for (int i = 0; i < buckets * 2; i++) {
+        if (tab[i])
+            imprimr_nodo(tab[i]);
+    }
+
+    table_destroy(tab,buckets * 2);
+
     return 0;
 }

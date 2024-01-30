@@ -4,7 +4,7 @@
 CC = gcc
 CFLAGS = -Wall -Werror -g
 TARGET = mi_programa
-SOURCE_FILES = test.c memc_node.c memc_queue.c 
+SOURCE_FILES = test.c memc_node.c memc_queue.c memc_table.c utils.c 
 
 # Regla por defecto
 all: $(TARGET)
