@@ -1,5 +1,9 @@
 #ifndef __MEMC__
 #define __MEMC__
+#include "memc_node.h"
+#include "memc_table.h"
+#include "memc_queue.h"
+#include <stdlib.h>
 
 struct MemCache;
 
@@ -35,7 +39,7 @@ int memc_del(
     memc_t m,
     void* key,
     void* key_len,
-    mode_t md
+    mod_t md
     );
 
 int memc_stats(memc_t m, stats_t st);

@@ -2,6 +2,8 @@
 #define __MEMC_TABLE__
 #include "memc_node.h"
 
+typedef unsigned (*HasFunc)(void*, unsigned);
+
 typedef node_t** table_t;
 
 table_t table_init(unsigned buckets);
@@ -15,14 +17,14 @@ int table_search(
     void*               key,
     unsigned            len,
     unsigned              i,
-    node_t*             ret
+    node_t**             ret
 );
 
 int table_rehash(
-    table_t tb,
+    table_t *tb,
     unsigned old_size,
     unsigned new_size,
-    unsigned (*hash)(void*,unsigned)   
+    unsigned int (*hash)(void*,unsigned)   
 );
 
 #endif

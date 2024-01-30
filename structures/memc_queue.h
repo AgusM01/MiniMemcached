@@ -8,6 +8,8 @@ typedef struct __MemcQueue queue_t;
 
 queue_t* queue_init();
 
+int queue_empty(queue_t* queue);
+
 void queue_destroy(queue_t* queue);
 
 void queue_addmru(queue_t *queue, node_t *node);
