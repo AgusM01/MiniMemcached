@@ -2,8 +2,16 @@
 #define __MEMC__
 #include "memc_node.h"
 #include "memc_table.h"
+#include <semaphore.h>
 #include "memc_queue.h"
+#include "lightswitch.h"
 #include <stdlib.h>
+
+#define INITIAL_BUCKETS 2
+#define SHIELD_AMOUNT 500
+
+#define TEXTO 0
+#define BINARIO 1
 
 struct MemCache;
 
@@ -18,6 +26,15 @@ typedef struct Stats* stats_t;
 
 typedef struct MemCache* memc_t;
 
+memc_t memc_init(
+    HasFunc hash,
+    unsigned tab_size,
+    unsigned shield_size,
+    unsigned memory_limit 
+    );
+
+void memc_destroy(memc_t mem);
+
 int memc_put(
     memc_t m,
     void* key,
@@ -30,18 +47,20 @@ int memc_put(
 int memc_get(
     memc_t m,
     void* key,
-    void* key_len,
-    void* data_buff,
+    unsigned key_len,
+    void** data_buff,
     mode_t md
     );
 
 int memc_del(
     memc_t m,
     void* key,
-    void* key_len,
+    unsigned key_len,
     mod_t md
     );
 
-int memc_stats(memc_t m, stats_t st);
+stats_t memc_stats(memc_t m);
+
+void* memc_alloc(memc_t mem, size_t bytes);
 
 #endif

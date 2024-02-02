@@ -21,7 +21,8 @@ int table_search(
 );
 
 int table_rehash(
-    table_t *tb,
+    table_t tb,
+    table_t new_tb,
     unsigned old_size,
     unsigned new_size,
     unsigned int (*hash)(void*,unsigned)   
