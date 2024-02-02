@@ -7,55 +7,11 @@
  *
  */
 
-/*! Nodo principal 
- *  
- *  Este nodo contiene los datos guardados en memoria.
- *  Son las bases de la tabla hash y la cola de prioridad 
- */
-struct __MemcNode {
-  void*                   key_buff;
-  void*                  data_buff;
-  struct __MemcNode*     arrows[4];
-  unsigned                 key_len;
-  unsigned                data_len;
-  mode_t                      mode;    
-};
 
-/*Tested*/
-node_t* node_init(
-    void*                   key,
-    void*                  data,
-    unsigned            len_key,
-    unsigned           len_data,
-    mod_t                   md
-    ) {
 
-  node_t *newnode = malloc(sizeof(struct __MemcNode));
 
-  if (!newnode)
-    return NULL;
+/*Tested, no usada*/
 
-  if (!(newnode->data_buff = malloc(len_data))) {
-    free(newnode);
-    return NULL;
-  }
-
-  if (!(newnode->key_buff = malloc(len_key))) {
-    free(newnode->data_buff);
-    free(newnode);
-    return NULL;
-  } 
-
-  memcpy(newnode->data_buff, data,  len_data);
-  memcpy(newnode->key_buff, key, len_key);
-
-  newnode->data_len = len_data;
-  newnode->key_len = len_key;
-  newnode->mode = md;
-  for(int i = 0; i < 4 ; i++) 
-    newnode->arrows[i] = NULL;
-  return newnode;
-}
 
 /*Tested*/
 void node_free(node_t* node) {
@@ -140,16 +96,16 @@ int node_addhd(int hq, node_t* node, node_t* head) {
   return 0;
 }
 
-int node_newdata(node_t* node, void* data, int len_data) {
-  free(node->data_buff);
+// int node_newdata(node_t* node, void* data, int len_data) {
+//   free(node->data_buff);
 
-  if(!(node->data_buff = malloc(len_data)))
-    return -1;
+//   if(!(node->data_buff = malloc(len_data)))
+//     return -1;
 
-  memcpy(node->data_buff, data, len_data);
+//   memcpy(node->data_buff, data, len_data);
 
-  return 0;
-}
+//   return 0;
+// }
 
 /*Tested*/
 void node_discc(int hq, node_t* node) {

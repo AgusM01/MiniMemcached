@@ -45,31 +45,29 @@ int table_search(
 }
 
 int table_rehash(
-    table_t* tb,
+    table_t tb,
+    table_t new_tb,
     unsigned old_size,
     unsigned new_size,
     unsigned (*hash)(void*,unsigned)
     ) {
 
-  void* buff = NULL;
-  table_t temp = *tb;
-  *tb = table_init(new_size);
 
   for(unsigned i = 0; i < old_size; i++) {
-    node_t* tbi = temp[i];
+    node_t* tbi = tb[i];
     while(tbi) {
-      temp[i] = node_arrow(tbi, HASH, RIGHT); 
+      tb[i] = node_arrow(tbi, HASH, RIGHT); 
       node_discc(HASH, tbi);
       table_insert(
-        *tb,
+        new_tb,
         tbi,
-        hash(buff, node_getkey(tbi, &buff)) % new_size
+        hash(tbi->key_buff, tbi->key_len) % new_size
         );
-      tbi = temp[i];
+      tbi = tb[i];
     }
   }
 
-  free(temp);
+  free(tb);
 
   return 0;
 }
