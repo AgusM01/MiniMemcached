@@ -21,7 +21,7 @@ typedef char mod_t;
 struct __MemcNode {
   void*                   key_buff;
   void*                  data_buff;
-  struct __MemcNode*     arrows[3];
+  struct __MemcNode*     arrows[4];
   unsigned                 key_len;
   unsigned                data_len;
   mod_t                      mode;    

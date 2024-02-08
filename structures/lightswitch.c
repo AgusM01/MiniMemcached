@@ -12,7 +12,8 @@ struct LightSwitch {
 
 ls_t* ls_init() {
     ls_t* new_ls; 
-    assert(!(new_ls = malloc(sizeof(ls_t*))));
+    assert((new_ls = malloc(sizeof(ls_t))));
+    assert((new_ls->mutex = malloc(sizeof(sem_t))));
 
     sem_init(new_ls->mutex, 0, 1);
     new_ls->count = 0;
@@ -22,6 +23,7 @@ ls_t* ls_init() {
 
 void ls_destroy(ls_t* ls) {
     sem_destroy(ls->mutex);
+    free(ls->mutex);
     free(ls);
 }
 
