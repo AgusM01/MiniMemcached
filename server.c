@@ -275,7 +275,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
     /*En teoria a este punto CAST_DATA_PTR->delimit_pos[0] contiene en que numero de byte esta el primer \n*/    
     /*La idea es que cada hilo ayude al siguiente completando el array con los proximos \n*/
             
-            
+    //printf("comm: %s\n", comm);
     
     return;
 
@@ -291,6 +291,7 @@ void* epoll_monitor(void* args){
     
     /*Inicializa la lista de los fd listos*/
     struct epoll_event* evlist = malloc(sizeof(struct epoll_event) * MAX_EVENTS); //Liberar esto al final
+    assert(evlist != 0);
     e_m_struct->evlist = evlist;
 
     while(1){
@@ -304,12 +305,12 @@ void* epoll_monitor(void* args){
             ese cliente. El hilo responde una consulta sola y lo vuelve a meter al epoll asi puede ir a atender a mas hilos*/
         epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, -1);
         /*Tenemos un fd disponible para lectura.*/
-        
+        printf("Voy a atender a fd: %d\n", CAST_DATA_PTR->fd);
         /*Verificar la presencia de EPOLLHUP o EPOLLER en cuyo caso hay que cerrar el fd*/
         if ((e_m_struct->evlist->events & EPOLLRDHUP) 
             || (e_m_struct->evlist->events & EPOLLERR)
             || (e_m_struct->evlist->events & EPOLLHUP)){
-
+            printf("Chau fd: %d\n", CAST_DATA_PTR->fd);
             epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, e_m_struct->evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
             close(CAST_DATA_PTR->fd);
             free(CAST_DATA_PTR->delimit_pos);
