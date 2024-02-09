@@ -16,14 +16,13 @@
 #define MAX_EVENTS 1
 #define MAX_CHAR 50 //Testing
 #define N_COMMANDS 10
-#define CAST_DATA_PTR ((struct data_ptr*)e_m_struct->evlist->data.ptr)
+#define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
 
 /*Esto en el .h*/
 struct args_epoll_monitor {
     int epollfd;
     int sockfd_text;
     int sockfd_binary;
-    struct epoll_event* evlist;
 };
 
 struct data_ptr {
@@ -94,12 +93,13 @@ void epoll_add(int sockfd, int epollfd, int mode){
     return;
 }
 
-void new_client(struct args_epoll_monitor* e_m_struct){
+void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
+    
     int client_sockfd;
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
-    ev.data.ptr = e_m_struct->evlist->data.ptr;
+    ev.data.ptr = evlist->data.ptr;
 
     /*Aceptamos al nuevo cliente*/
     client_sockfd = accept(e_m_struct->sockfd_text, NULL, 0);
@@ -124,7 +124,7 @@ void new_client(struct args_epoll_monitor* e_m_struct){
     return;
 }
 
-void text_consume(struct args_epoll_monitor* e_m_struct){
+void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     /*Usar la funcion recv para leer del buffer de lectura. Usar ntohl para pasar de network-byte-order (big endian) a host-byte-order <- binario*/ 
     /*Funcion readline() lee hasta un '\n' <- posible*/
     char temp[MAX_CHAR]; /*Buffer temporal para ir desglosando los comandos*/
@@ -184,7 +184,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
 
                 /*Notar que no tiene sentido que de EOF, si dio 0 es porque se desconectó.*/
                 if(err_read == 0){
-                    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, e_m_struct->evlist); 
+                    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
                     close(CAST_DATA_PTR->fd);
                     free(CAST_DATA_PTR->delimit_pos);
                     free(CAST_DATA_PTR);
@@ -200,7 +200,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
                     /*Error, o se desconectó o es EOF, ver el error mediante la bandera.*/
                     /*Este es el caso que mandó 2048 caracteres distintos de \n*/
                     /*Por ahora lo saco del epoll pero revisar*/
-                    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, e_m_struct->evlist); 
+                    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
                     close(CAST_DATA_PTR->fd);
                     free(CAST_DATA_PTR->delimit_pos);
                     free(CAST_DATA_PTR);
@@ -239,7 +239,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
                     //sleep(0.1);
                     if (atk == 3){ /*Lo desconecto, posiblemente ataque*/
                             printf("ATK elimino del epoll a: %d\n", CAST_DATA_PTR->fd);
-                            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, e_m_struct->evlist); 
+                            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
                             close(CAST_DATA_PTR->fd);
                             free(CAST_DATA_PTR->delimit_pos);
                             free(CAST_DATA_PTR);
@@ -251,7 +251,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
                     printf("se la perdono...\n");
                     struct epoll_event ev;
                     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
-                    ev.data.ptr = e_m_struct->evlist->data.ptr;
+                    ev.data.ptr = evlist->data.ptr;
                     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
                     return;
                 }
@@ -260,7 +260,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
         else{ /*No leyó nada, de base, lo que significa que se desconectó.*/
 
             /*Libero todo lo que tenia, cierro el fd y lo saco del epoll*/
-            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, e_m_struct->evlist); 
+            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
             close(CAST_DATA_PTR->fd);
             free(CAST_DATA_PTR->delimit_pos);
             free(CAST_DATA_PTR);
@@ -289,7 +289,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
     /*La idea es que cada hilo ayude al siguiente completando el array con los proximos \n*/
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
-    ev.data.ptr = e_m_struct->evlist->data.ptr;
+    ev.data.ptr = evlist->data.ptr;
     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
     //printf("comm: %s\n", comm);
     
@@ -309,7 +309,7 @@ void* epoll_monitor(void* args){
     
     struct epoll_event* evlist = malloc(sizeof(struct epoll_event) * MAX_EVENTS); //Liberar esto al final
     assert(evlist != 0);
-    e_m_struct->evlist = evlist;
+    //e_m_struct->evlist = evlist;
     int a = 0;
 
     while(1){
@@ -321,20 +321,20 @@ void* epoll_monitor(void* args){
             devuelta por epoll_wait en el caso de tener nuevo input que ya está siendo 
             atendida por un hilo. Ese hilo debe volver a activar las notificaciones de
             ese cliente. El hilo responde una consulta sola y lo vuelve a meter al epoll asi puede ir a atender a mas hilos*/
-        a = epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, -1);
+        a = epoll_wait(e_m_struct->epollfd, evlist, MAX_EVENTS, -1);
         assert(a != -1);
 
         printf("Atiendo a fd: %d, soy hilo: %ld\n", CAST_DATA_PTR->fd, pthread_self());
-        printf("FLAGS: %d\n", (int)e_m_struct->evlist->events);
+        //printf("FLAGS: %d\n", (int)e_m_struct->evlist->events);
 
         /*Tenemos un fd disponible para lectura.*/
         //printf("Voy a atender a fd: %d\n", CAST_DATA_PTR->fd);
         /*Verificar la presencia de EPOLLHUP o EPOLLER en cuyo caso hay que cerrar el fd*/
         
-        if ((e_m_struct->evlist->events & EPOLLRDHUP) 
-            || (e_m_struct->evlist->events & EPOLLERR)
-            || (e_m_struct->evlist->events & EPOLLHUP)){
-            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, e_m_struct->evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
+        if ((evlist->events & EPOLLRDHUP) 
+            || (evlist->events & EPOLLERR)
+            || (evlist->events & EPOLLHUP)){
+            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
             close(CAST_DATA_PTR->fd);
             printf("fd cerrado: %d\n", CAST_DATA_PTR->fd);
             free(CAST_DATA_PTR->delimit_pos);
@@ -349,14 +349,14 @@ void* epoll_monitor(void* args){
                 
                 printf("Hay que aceptar a alguien\n");
                 /*Aceptamos al nuevo cliente*/
-                new_client(e_m_struct);
+                new_client(e_m_struct, evlist);
                 /*Lo añadimos a la instancia de epoll para monitorearlo.*/
             }
             else{
                 printf("Es un cliente de pedidos\n");
                 /*Este cliente no es nuevo por lo que nos hará consultas.*/
                 /*Hacer un if para diferenciar entre cliente de texto y binario mediante el data.u32*/  
-                text_consume(e_m_struct);  
+                text_consume(e_m_struct, evlist);  
             }   
         }
     }
@@ -392,7 +392,6 @@ int main (int argc, char* argv[]){
 
     struct args_epoll_monitor args;
     args.epollfd = epollfd;
-    args.evlist = NULL;
     args.sockfd_text = sockfd_text;
     args.sockfd_binary = sockfd_binary;
 
