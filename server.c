@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <errno.h>
 
 #define PORT_NUM_TEXT   8888
 #define PORT_NUM_BIN    8889
@@ -82,32 +83,44 @@ void epoll_add(int sockfd, int epollfd, int mode){
     d_ptr->delimit_pos = malloc(4*N_COMMANDS); /*Liberar esto*/
     d_ptr->actual_pos_arr = 0;
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; //NO USAR EDGE TRIGGERED YA QUE SI UN HILO MANDA MUCHISIMO NO VA A AVISAR PENSAR CHARLADO CON NERI ESCUCHAR AUDIO ZOE
+    //printf("FLAGS: %d\n", (int)ev.events);
     ev.data.ptr = d_ptr;
+    
+    int fcntl_ret;
+    fcntl_ret = fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK));
+    assert(fcntl_ret != -1);
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
     return;
 }
 
-void new_client(struct args_epoll_monitor* e_m_struct, int* client_sockfd){
+void new_client(struct args_epoll_monitor* e_m_struct){
 
-    /*Aceptamos al nuevo cliente*/
-    *client_sockfd = accept(e_m_struct->sockfd_text, NULL, 0);
-    assert(*client_sockfd != -1);
-
-    /*El fd no se bloquea en lectura. Esta funcion modifica las banderas del estado del archivo agregando la bandera O_NONBLOCK.*/
-    int fcntl_ret;
-    fcntl_ret = fcntl(*client_sockfd, F_SETFL, (fcntl(*client_sockfd, F_GETFL, 0) | O_NONBLOCK));
-    assert(fcntl_ret != -1);
-
-    /*Reactivamos el fd para monitoreo (EPOLLONESHOT activado)*/
+    int client_sockfd;
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
     ev.data.ptr = e_m_struct->evlist->data.ptr;
 
-    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, e_m_struct->sockfd_text, &ev);
+    /*Aceptamos al nuevo cliente*/
+    client_sockfd = accept(e_m_struct->sockfd_text, NULL, 0);
+    printf("Acepto a: %d\n", client_sockfd);
     
-    printf("Acepto a: %d\n", *client_sockfd);
+    if (client_sockfd == -1){
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)){            
+            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
+            return;
+        }
+        else{
+            perror("Error al aceptar nuevo cliente\n");
+            exit(1);
+        } 
+    }
 
+    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
+    epoll_add(client_sockfd, e_m_struct->epollfd, CAST_DATA_PTR->text_or_binary);
+
+    
+    
     return;
 }
 
@@ -274,7 +287,10 @@ void text_consume(struct args_epoll_monitor* e_m_struct){
     printf("Por aca todo listo por ahora\n");
     /*En teoria a este punto CAST_DATA_PTR->delimit_pos[0] contiene en que numero de byte esta el primer \n*/    
     /*La idea es que cada hilo ayude al siguiente completando el array con los proximos \n*/
-            
+    struct epoll_event ev;
+    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
+    ev.data.ptr = e_m_struct->evlist->data.ptr;
+    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
     //printf("comm: %s\n", comm);
     
     return;
@@ -290,9 +306,11 @@ void* epoll_monitor(void* args){
     e_m_struct = (struct args_epoll_monitor*) args;
     
     /*Inicializa la lista de los fd listos*/
+    
     struct epoll_event* evlist = malloc(sizeof(struct epoll_event) * MAX_EVENTS); //Liberar esto al final
     assert(evlist != 0);
     e_m_struct->evlist = evlist;
+    int a = 0;
 
     while(1){
 
@@ -303,32 +321,36 @@ void* epoll_monitor(void* args){
             devuelta por epoll_wait en el caso de tener nuevo input que ya está siendo 
             atendida por un hilo. Ese hilo debe volver a activar las notificaciones de
             ese cliente. El hilo responde una consulta sola y lo vuelve a meter al epoll asi puede ir a atender a mas hilos*/
-        epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, -1);
+        a = epoll_wait(e_m_struct->epollfd, e_m_struct->evlist, MAX_EVENTS, -1);
+        assert(a != -1);
+
+        printf("Atiendo a fd: %d, soy hilo: %ld\n", CAST_DATA_PTR->fd, pthread_self());
+        printf("FLAGS: %d\n", (int)e_m_struct->evlist->events);
+
         /*Tenemos un fd disponible para lectura.*/
-        printf("Voy a atender a fd: %d\n", CAST_DATA_PTR->fd);
+        //printf("Voy a atender a fd: %d\n", CAST_DATA_PTR->fd);
         /*Verificar la presencia de EPOLLHUP o EPOLLER en cuyo caso hay que cerrar el fd*/
+        
         if ((e_m_struct->evlist->events & EPOLLRDHUP) 
             || (e_m_struct->evlist->events & EPOLLERR)
             || (e_m_struct->evlist->events & EPOLLHUP)){
-            printf("Chau fd: %d\n", CAST_DATA_PTR->fd);
             epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, e_m_struct->evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
             close(CAST_DATA_PTR->fd);
+            printf("fd cerrado: %d\n", CAST_DATA_PTR->fd);
             free(CAST_DATA_PTR->delimit_pos);
             free(CAST_DATA_PTR);
         }
         else{
-            printf("No es un cliente desconectado\n");
+            //printf("No es un cliente desconectado\n");
 
             /*Si es el fd del socket del server debemos atender a un nuevo cliente.*/
             if (CAST_DATA_PTR->fd == e_m_struct->sockfd_text ||
                 CAST_DATA_PTR->fd == e_m_struct->sockfd_binary){
                 
                 printf("Hay que aceptar a alguien\n");
-                int client_sockfd;
                 /*Aceptamos al nuevo cliente*/
-                new_client(e_m_struct, &client_sockfd);
+                new_client(e_m_struct);
                 /*Lo añadimos a la instancia de epoll para monitorearlo.*/
-                epoll_add(client_sockfd, e_m_struct->epollfd, CAST_DATA_PTR->text_or_binary);
             }
             else{
                 printf("Es un cliente de pedidos\n");
@@ -360,6 +382,9 @@ int main (int argc, char* argv[]){
     /*Añade el fd del socket binario creado a la instancia de epoll para monitorearlo.*/
     //epoll_add(sockfd_binary, epollfd, 1);
 
+    //printf("EPOLLONESHOT: %d\n", (int)EPOLLONESHOT);
+    //printf("EPOLLIN: %d\n", (int)EPOLLIN);
+    //printf("EPOLLRDHUP: %d\n", (int)EPOLLRDHUP);
     
     int cores = sysconf(_SC_NPROCESSORS_CONF);
 
@@ -370,6 +395,7 @@ int main (int argc, char* argv[]){
     args.evlist = NULL;
     args.sockfd_text = sockfd_text;
     args.sockfd_binary = sockfd_binary;
+
     for (int i = 0; i < cores; i++){
         pthread_create(&t[i], NULL, epoll_monitor, &args);
     }
