@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include "server.h"
 
 #define PORT_NUM_TEXT   8888
 #define PORT_NUM_BIN    8889
@@ -18,20 +19,6 @@
 #define N_COMMANDS 10
 #define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
 
-/*Esto en el .h*/
-struct args_epoll_monitor {
-    int epollfd;
-    int sockfd_text;
-    int sockfd_binary;
-};
-
-struct data_ptr {
-    int fd;
-    int text_or_binary; /*0 para text, 1 para binary*/
-    int* delimit_pos; /*Array de posiciones de \n*/
-    int cant_comm_ptr; /*Cantidad de \n*/
-    int actual_pos_arr; /*Posicion actual del array delimit_pos*/ 
-};
 
 
 /*Crea un socket TCP en dominio IPv4*/
@@ -93,6 +80,7 @@ void epoll_add(int sockfd, int epollfd, int mode){
     return;
 }
 
+/*Conecta a un nuevo cliente.*/
 void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
     
@@ -124,6 +112,7 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     return;
 }
 
+/*Consume el texto del fd de un cliente.*/
 void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     /*Usar la funcion recv para leer del buffer de lectura. Usar ntohl para pasar de network-byte-order (big endian) a host-byte-order <- binario*/ 
     /*Funcion readline() lee hasta un '\n' <- posible*/
@@ -301,7 +290,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
 
 }
 
-/*void* epoll_monitor(struct args_epoll_monitor* args)*/
+/*Le da un fd listo a cada thread*/
 void* epoll_monitor(void* args){
     
 
