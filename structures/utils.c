@@ -17,17 +17,15 @@ unsigned hash(char* wrd){
 	return hashval;
 }
 
-size_t limit_mem(size_t bytes) {
+size_t limit_mem(size_t bytes, int flag) {
 	struct rlimit rlm;
-	getrlimit(RLIMIT_AS, &rlm);
-		
+	int ret = 0;
+	getrlimit(flag, &rlm);
 	if ( bytes <= rlm.rlim_max ) {
 		rlm.rlim_cur = bytes;
 	} else {
 		rlm.rlim_cur = rlm.rlim_max;
 	}
-
-	setrlimit(RLIMIT_AS, &rlm);
-	
-	return rlm.rlim_cur;
+	ret = setrlimit(flag, &rlm);
+	return ret;
  }

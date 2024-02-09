@@ -50,9 +50,10 @@ memc_t memc_init(
         unsigned memory_limit
         ) {
 
-    limit_mem(memory_limit);
 
-    memc_t mem = malloc(sizeof(struct MemCache));
+    memc_t mem;
+    //assert(!limit_mem(memory_limit, RLIMIT_MEMLOCK));
+    assert((mem = malloc(sizeof(struct MemCache))));
 
     mem->dels = stat_init(0);
     mem->puts = stat_init(0);
@@ -68,6 +69,11 @@ memc_t memc_init(
     mem->evic = ls_init();
     mem->rhsh = ls_init();
 
+    assert((mem->evic_mutex = malloc(sizeof(sem_t))));
+    assert((mem->rehash_mutex = malloc(sizeof(sem_t))));
+    assert((mem->queue_mutex = malloc(sizeof(sem_t))));
+    assert((mem->turnstile = malloc(sizeof(sem_t))));
+
     sem_init(mem->evic_mutex, 0, 1);
     sem_init(mem->rehash_mutex, 0, 1);
     sem_init(mem->queue_mutex, 0, 1);
@@ -77,6 +83,7 @@ memc_t memc_init(
     mem->shield_size = shield_size;
 
     for (int i = 0; i < shield_size; i++) {
+        assert((mem->tab_shield[i] = malloc(sizeof(sem_t))));
         sem_init(mem->tab_shield[i], 0, 1);
     }
 
@@ -101,16 +108,23 @@ void memc_destroy(memc_t mem) {
     sem_destroy(mem->queue_mutex);
     sem_destroy(mem->turnstile);
 
+    free(mem->evic_mutex);
+    free(mem->rehash_mutex);
+    free(mem->queue_mutex);
+    free(mem->turnstile);
+
     for (int i = 0; i < mem->shield_size; i++) {
         sem_destroy(mem->tab_shield[i]);
+        free(mem->tab_shield[i]);
     }
 
     free(mem->tab_shield);
+    free(mem);
 }
 
 // Setea los datos de un nuevo nodo.
 // TODO -> Manejar errores me memoria con función auxiliar.
-node_t* node_set(
+void node_set(
     node_t*             newnode,
     void*                   key,
     void*                  data,
@@ -126,7 +140,6 @@ node_t* node_set(
   newnode->mode = md;
   for(int i = 0; i < 4 ; i++) 
     newnode->arrows[i] = NULL;
-  return newnode;
 }
 
 //Lock para requerir memoria
@@ -209,6 +222,7 @@ void memc_rehash(memc_t mem){
             new_size,
             mem->hash
         );
+        //free(mem->tab);
         mem->tab = new_tab;
         mem->buckets = new_size;
         //Liberamos threads y liberamos la ls
@@ -255,7 +269,7 @@ int memc_put(
     //REGION CRÍTICA HASH
 
     //Busqueda de key ya existente
-    if ((search = table_search(mem->tab, key, key_len, tab_index, &temp))) {
+    if (!(search = table_search(mem->tab, key, key_len, tab_index, &temp))) {
         //Key encotrada, remplazo del Dato
         free(temp->data_buff);
         temp->data_buff = buff_data;
@@ -410,7 +424,7 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
 
 //Xd -> Cambiar la onda, tal vez con el buffer ya armado.
 stats_t memc_stats(memc_t mem) {
-    stats_t st = memc_alloc(mem, sizeof(stats_t));
+    stats_t st = memc_alloc(mem, sizeof(struct Stats));
     stat_lock(mem->gets);
     stat_lock(mem->puts);
     stat_lock(mem->dels);

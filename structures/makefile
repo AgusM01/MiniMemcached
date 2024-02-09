@@ -4,14 +4,18 @@
 CC = gcc
 CFLAGS = -Wall -Werror -g
 TARGET = mi_programa
-SOURCE_FILES = test.c memc_node.c memc_queue.c memc_table.c utils.c 
+STRUCTURES = memc.c memc_node.c memc_queue.c memc_table.c 
+UTILS = utils.c
+CONCURRENT = lightswitch.c memc_stat.c
+TEST = test.c
+
 
 # Regla por defecto
 all: $(TARGET)
 
 # Regla para construir el programa
-$(TARGET): $(SOURCE_FILES)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCE_FILES)
+$(TARGET): $(STRUCTURES) $(UTILS) $(CONCURRENT) $(TEST)
+	$(CC) $(CFLAGS) -o $(TARGET) test.c $(STRUCTURES) $(UTILS) $(CONCURRENT)
 
 # Regla para limpiar los archivos generados
 clean:

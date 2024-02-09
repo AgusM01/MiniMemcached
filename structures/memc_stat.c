@@ -2,6 +2,7 @@
 #include <semaphore.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <assert.h>
 
 struct __Stat {
     size_t count;
@@ -9,7 +10,9 @@ struct __Stat {
 };
 
 stat_t* stat_init(size_t init_val) {
-    stat_t* new_stat = malloc(sizeof(struct __Stat));
+    stat_t* new_stat;
+    assert((new_stat = malloc(sizeof(struct __Stat))));
+    new_stat->mutex = malloc(sizeof(sem_t));
     sem_init(new_stat->mutex, 0, 1);
     new_stat->count = init_val;
     return new_stat;
@@ -17,6 +20,7 @@ stat_t* stat_init(size_t init_val) {
 
 void stat_destroy(stat_t* st) {
     sem_destroy(st->mutex);
+    free(st->mutex);
     free(st);
 }
 

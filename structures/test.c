@@ -1,101 +1,70 @@
-#include "memc_node.h"
+#include "memc.h"
+#include "memc_table.h"
 #include "utils.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <assert.h>
-#include "memc_queue.h"
-#include "memc_table.h"
+#include <sys/resource.h>
+#include <unistd.h>
 
-void imprimr_nodo(node_t* node) {
-    char* buff = NULL; // malloc(sizeof(char) * 10);
-    int n = 0;
-
-    n = node_getdata(node, (void**)&buff);
-
-    printf("Data:%s.\nLen:%d.\n", buff,n);
-
-    n = node_getkey(node, (void**)&buff);
-
-    printf("Key:%s.\nLen:%d.\n", buff,n);
-}
-
-/*int queue_test() {
-    char texto[10] = "Holatengo";
-    char clave[4]  = "key";
-
-    queue_t* cola = queue_init();
-
-    node_t* nodes[10];
-        
-    char* buff = NULL;
-
-    node_t* temp;
-
-    for (int i = 0; i < 10; i++) {
-        nodes[i] = node_init("node0","a",6,2,1);
-        queue_addmru(cola, nodes[i]);
-        node_getdata(nodes[i], (void**)&buff);
-        buff[0] = buff[0] + i;
-        node_getkey(nodes[i],(void**)&buff);
-        buff[4] = buff[4] + i;
-    }
-
-    queue_delnode(nodes[5]);
-    node_free(nodes[5]);
-
-    while((temp = queue_dqlru(cola))) {
-        if (queue_empty(cola))
-            puts("Vacía");
-        imprimr_nodo(temp);
-        node_free(temp);
-    }
-
-    queue_destroy(cola);
-
-    
-    return 0;
-}*/
+#define MEMORY 10
 
 int main(){
+    memc_t mem = memc_init((HasFunc)hash_len, INITIAL_BUCKETS, SHIELD_AMOUNT, MEMORY);
+    memc_destroy(mem);
+    puts("Holamundo");
+    mem = memc_init((HasFunc)hash_len, INITIAL_BUCKETS, SHIELD_AMOUNT, MEMORY);
 
-    node_t* nodes[10];
-        
-    char key[6] = "Node0";
+    char *claves[12] = { "hola",    "como", "estas", "todo",
+                         "bien",    "por",  "casa",  "como",
+                         "andamos", "perri", "todo", "piola"};
 
-    char data[2] = "a";
+    int len_cla[12] = { 5, 5, 6, 5,
+                        5, 4, 5, 5, 
+                        8, 7, 5, 6};
 
-    int buckets = 10; 
+    char* datos[12] = { "Ule", "Dani", "caballo", "pata",
+                        "central", "auriculares", "helado", "muelle",
+                        "notas adhesivas", "pandereta", "messi", "lampara de lava"};
 
-    table_t tab = table_init(10);
-
-    //char* buff = NULL;
-
-    node_t* temp = NULL;
+    int len_dat[12] = { 5, 5, 8, 5,
+                        8, 12, 7, 7, 
+                        16, 11, 6, 16};
     
-    unsigned j = 0;
-
-    for (int i = 0; i < 10; i++) {
-        nodes[i] = node_init(key,data,6,2,1);
-        j = hash_len(key, 5) % buckets;
-        imprimr_nodo(nodes[i]);
-        printf("table --> %d\n",j);
-        table_insert(tab, nodes[i], 4);
-        key[4]++;
-        key[3]++;
-        data[0]++;
+    for (int i = 0; i < 12; i++) {
+        memc_put(mem, claves[i], datos[i], len_cla[i], len_dat[i], TEXTO);
     }
 
-    assert(!table_search(tab, "Nodi4", 6, 4,&temp));
-    imprimr_nodo(temp);
 
-    table_rehash(&tab, buckets, buckets * 2, (HasFunc) hash_len);
+    char* para_imprimir;
 
-    for (int i = 0; i < buckets * 2; i++) {
-        if (tab[i])
-            imprimr_nodo(tab[i]);
-    }
+    memc_get(mem, "como", 5, (void**)&para_imprimir, TEXTO);
 
-    table_destroy(tab,buckets * 2);
+    printf("%s-\n",para_imprimir);
 
+    if (!memc_get(mem, "todo", 5, (void**)&para_imprimir, TEXTO))
+        puts("Holanda");
+
+    printf("%s-\n",para_imprimir);
+
+    memc_get(mem, "como", 5, (void**)&para_imprimir, TEXTO);
+
+    printf("%s-\n",para_imprimir);
+
+    free(para_imprimir);
+
+
+    memc_del(mem, "todo", 5, TEXTO);
+
+    if (!memc_get(mem, "todo", 5, (void**)&para_imprimir, TEXTO))
+        puts("Holanda");
+
+    stats_t st = memc_stats(mem);
+    printf("%lu\n",st->keys);
+    printf("%lu\n",st->puts);
+    printf("%lu\n",st->gets);
+    printf("%lu\n",st->dels);
+    free(st);
+
+    memc_destroy(mem);
     return 0;
 }
