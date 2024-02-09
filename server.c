@@ -178,7 +178,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
 
             /*Que hacer si de base es un error <- La idea es que el hilo consuma todo el error asi deja a los demas hilos con futuros comandos válidos.*/
             if (!valid){ /*No hay ningun \n en 2048 bytes. Debo leer más para encontrarlo y descartar ese comando*/
-                printf("Esta mal esto\n");
+                printf("Leí error, trataré de consumirlo.\n");
                 err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, 0); /*Consumo los 2048 primeros caracteres donde no hay \n*/
                 assert(err_read != -1);
 
@@ -210,7 +210,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 else{ /*Empiezo una búsqueda del \n*/
                     while ((pos_err_n == -1) && (atk < 3)){
                         for(int i = 0; i < err_read; i++){
-                            if (temp[i] == '\n'){ //Se mete aca y no deberia en el ejemplo que di.
+                            if (temp[i] == '\n'){ 
                                 pos_err_n = i;
                             }
                         }
@@ -219,7 +219,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                         }
                         else{
                             err_read = recv(CAST_DATA_PTR->fd, temp, err_read, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo,*/
-                            err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, MSG_PEEK);
+                            err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, MSG_PEEK); /*Leo 2048 más para ver si esta el \n, sin consumir.*/
                             assert(err_read != -1);
                             if (!err_read){
                                 printf("Entre\n");
@@ -270,7 +270,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     
     /*Los hilos que ya encuentren posiciones de \n solo haran esta parte. Los que no, deberán hacer todo lo anterior.*/
     /*Reiniciamos la posicion actual del array*/
-    CAST_DATA_PTR->actual_pos_arr = 0; 
+    //CAST_DATA_PTR->actual_pos_arr = 0; 
     char comm[CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr]];
     int read_comm;
     
@@ -284,9 +284,12 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     CAST_DATA_PTR->cant_comm_ptr -= 1; 
     
     /*Se llama al parser y luego a manage_client para responder el comando*/            
-    printf("Por aca todo listo por ahora\n");
+    printf("Leí: %s, ahora esto al parser.\n", comm);
     /*En teoria a este punto CAST_DATA_PTR->delimit_pos[0] contiene en que numero de byte esta el primer \n*/    
     /*La idea es que cada hilo ayude al siguiente completando el array con los proximos \n*/
+    
+    
+    
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
     ev.data.ptr = evlist->data.ptr;
