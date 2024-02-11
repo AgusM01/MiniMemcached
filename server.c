@@ -11,14 +11,15 @@
 #include <string.h>
 #include <errno.h>
 #include "server.h"
+#include "text_parser.h"
 
 #define PORT_NUM_TEXT   8888
 #define PORT_NUM_BIN    8889
 #define MAX_EVENTS 1
-#define MAX_CHAR 50 //Testing
+#define MAX_CHAR 2048 //Testing
 #define N_COMMANDS 10
 #define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
-
+#define DELIMITER " \n"
 
 
 /*Crea un socket TCP en dominio IPv4*/
@@ -116,10 +117,11 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
 void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     /*Usar la funcion recv para leer del buffer de lectura. Usar ntohl para pasar de network-byte-order (big endian) a host-byte-order <- binario*/ 
     /*Funcion readline() lee hasta un '\n' <- posible*/
-    char temp[MAX_CHAR]; /*Buffer temporal para ir desglosando los comandos*/
+    //char temp[MAX_CHAR]; /*Buffer temporal para ir desglosando los comandos*/
+    char* temp = malloc(MAX_CHAR);
     //char* buf = malloc(MAX_CHAR);
     //char* resp = malloc(MAX_CHAR);
-    char* err = "EINVAL";
+    char* err = "EINVAL\n";
     ssize_t fst_read, err_read;
     int pos_err_n = -1; /*Representa donde esta el \n en un mensaje que ya previamente es de error.*/
     int valid = 0; /*Bandera para indicar si el pedido es válido (<= 2048 caracteres)*/
@@ -134,6 +136,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
         /*Primer recv para ubicar la posicion del \n*/
         fst_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, MSG_PEEK); 
         assert(fst_read != -1);
+        //printf("temp: %s\n", temp);
         /* 3 casos:
         * fst_read = -1 -> Error de lectura: Cubierto con assert.
         * fst_read = 0 -> EOF/Shutdown Peer socket. 
@@ -145,11 +148,12 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             /*Si entró aca significa que no hay \n guardados, por lo que reiniciamos la pos del array.*/
 
             CAST_DATA_PTR->actual_pos_arr = 0;
+
             for (int i = 0; i < fst_read; i++){
                 if(temp[i] == '\n'){
                     //printf("como encontre esto? i= %d\n", i);
                     valid = 1;
-                    CAST_DATA_PTR->cant_comm_ptr++;
+                    CAST_DATA_PTR->cant_comm_ptr += 1;
 
                     /*Posiblemente nunca deba ejecutarse pero por las dudas.*/
                     if(CAST_DATA_PTR->cant_comm_ptr == cant_commands){ 
@@ -158,7 +162,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                     }
 
                     CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr] = i; /*Guardo la pos de los \n*/
-                    CAST_DATA_PTR->actual_pos_arr++;
+                    CAST_DATA_PTR->actual_pos_arr += 1;
                 }
             }
 
@@ -175,6 +179,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 if(err_read == 0){
                     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
                     close(CAST_DATA_PTR->fd);
+                    free(temp);
                     free(CAST_DATA_PTR->delimit_pos);
                     free(CAST_DATA_PTR);
                     return;
@@ -191,6 +196,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                     /*Por ahora lo saco del epoll pero revisar*/
                     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
                     close(CAST_DATA_PTR->fd);
+                    free(temp);
                     free(CAST_DATA_PTR->delimit_pos);
                     free(CAST_DATA_PTR);
                     return;
@@ -204,18 +210,17 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                             }
                         }
                         if (pos_err_n != -1){
-                            err_read = recv(CAST_DATA_PTR->fd, temp, pos_err_n, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo,*/
+                            err_read = recv(CAST_DATA_PTR->fd, temp, pos_err_n + 1, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo, junto con el \n.*/
                         }
                         else{
-                            err_read = recv(CAST_DATA_PTR->fd, temp, err_read, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo,*/
+                            err_read = recv(CAST_DATA_PTR->fd, NULL, err_read, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo,*/
                             err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, MSG_PEEK); /*Leo 2048 más para ver si esta el \n, sin consumir.*/
                             assert(err_read != -1);
                             if (!err_read){
-                                printf("Entre\n");
                                 pos_err_n = 0; /*Leyó EOF por lo que termino el while y hago que se le mande el msg de error*/
                                 atk = 0; /*Reinicio atk por las dudas*/
                             }
-                            atk++;
+                            atk += 1;
                         }
                         printf("atk: %d\n",atk);
                     }
@@ -230,6 +235,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                             printf("ATK elimino del epoll a: %d\n", CAST_DATA_PTR->fd);
                             epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
                             close(CAST_DATA_PTR->fd);
+                            free(temp);
                             free(CAST_DATA_PTR->delimit_pos);
                             free(CAST_DATA_PTR);
                             return;
@@ -242,6 +248,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
                     ev.data.ptr = evlist->data.ptr;
                     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
+                    free(temp);
                     return;
                 }
             }
@@ -251,6 +258,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             /*Libero todo lo que tenia, cierro el fd y lo saco del epoll*/
             epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); 
             close(CAST_DATA_PTR->fd);
+            free(temp);
             free(CAST_DATA_PTR->delimit_pos);
             free(CAST_DATA_PTR);
             return;
@@ -260,35 +268,58 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     /*Los hilos que ya encuentren posiciones de \n solo haran esta parte. Los que no, deberán hacer todo lo anterior.*/
     /*Reiniciamos la posicion actual del array*/
     //CAST_DATA_PTR->actual_pos_arr = 0; 
-    char comm[CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr]];
+    int s = CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr];
+    char comm[s + 1];
     int read_comm;
     
-    /*Le sumo 1 ya que quiero leer hasta ese \n inclusive.*/
-    read_comm = recv(CAST_DATA_PTR->fd, comm, CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr] + 1, 0);
+    /*Como empieza a contar del 0, el \n sería el byte s + 1.*/
+    /*En la palabra hola\n por ejemplo el \n estaria en la pos. 4 pero es el 5to byte.*/
+    read_comm = recv(CAST_DATA_PTR->fd, comm, s + 1, 0);
     assert(read_comm != -1);
-    
+    comm[s + 1] = '\0'; /*Le agrego el terminador de cadena*/
+    //printf("comm en s - 1: %c\n", comm[s - 1]);
+    //printf("comm en s: %c\n", comm[s]);
+    //printf("comm en s + 1: %c\n", comm[s + 1]);
+    //printf("Leí %d bytes.\n Quería leer %d bytes.\n", read_comm,CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr] + 1);
+    //printf("Hay %ld caracteres en comm.\n", strlen(comm));
+    //for (int i = 0; i < read_comm; i++){
+    //    printf("comm[%d]: %c\n", i, comm[i]);
+    //}
     /*Aumentamos la posicion del array*/
     CAST_DATA_PTR->actual_pos_arr += 1;
     /*Se decrementa la cantidad de comandos*/
     CAST_DATA_PTR->cant_comm_ptr -= 1; 
     
     /*Se llama al parser y luego a manage_client para responder el comando*/            
-    printf("Leí: %s, ahora esto al parser.\n", comm);
+    //printf("Leí: %s, ahora esto al parser.\n", comm);
+
+    int cant_comm = 0;
+    char** token_commands; /*Liberar esto*/
+    token_commands = text_parser(comm, &cant_comm, DELIMITER);
+    for (int i = 0; i < cant_comm; i++)
+        printf("comando %d = %s\n", i, token_commands[i]);
+
+    
     /*En teoria a este punto CAST_DATA_PTR->delimit_pos[0] contiene en que numero de byte esta el primer \n*/    
     /*La idea es que cada hilo ayude al siguiente completando el array con los proximos \n*/
     
-    
-    
+    free(temp);
+    free(token_commands);    
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
     ev.data.ptr = evlist->data.ptr;
     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
-    //printf("comm: %s\n", comm);
     
     return;
 
 
 }
+
+//void manage_client(char** token_comands, int cant_comm){
+//    if (token_comands[0] == "PUT"){
+//        
+//    }
+//}
 
 /*Le da un fd listo a cada thread*/
 void* epoll_monitor(void* args){
@@ -303,7 +334,7 @@ void* epoll_monitor(void* args){
     assert(evlist != 0);
     //e_m_struct->evlist = evlist;
     int a = 0;
-
+    printf("Entro al while soy %ld\n", pthread_self());
     while(1){
 
         /*Retorna los fd listos para intercambio de datos*/

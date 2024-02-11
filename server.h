@@ -1,13 +1,14 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-/*Esto en el .h*/
+/*Argumentos para la funcion epoll_monitor*/
 struct args_epoll_monitor {
     int epollfd;
     int sockfd_text;
     int sockfd_binary;
 };
 
+/*Estructura con la informacion de cada fd guardada en la parte de data de cada estructura epoll_event*/
 struct data_ptr {
     int fd;
     int text_or_binary; /*0 para text, 1 para binary*/
@@ -18,22 +19,26 @@ struct data_ptr {
 
 /*Crea un socket TCP en dominio IPv4*/
 /*Retorna un fd que representa nuestro socket y al cual se conectarán los clientes.*/
-void sock_text_creation(int* sockfd);
+void sock_text_creation (int* sockfd);
 
 /*Crea una instancia de epoll*/
-void epoll_initiate(int* epollfd);
+void epoll_initiate (int* epollfd);
 
 /*Añade los fd a la instancia de epoll para monitorearlos*/
-void epoll_add(int sockfd, int epollfd, int mode);
+void epoll_add  (int sockfd, 
+                 int epollfd, 
+                 int mode);
 
 /*Conecta a un nuevo cliente.*/
-void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
+void new_client (struct args_epoll_monitor* e_m_struct, 
+                 struct epoll_event* evlist);
 
 /*Consume el texto del fd de un cliente.*/
-void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
+void text_consume   (struct args_epoll_monitor* e_m_struct, 
+                     struct epoll_event* evlist);
 
 /*Le da un fd listo a cada thread*/
-void* epoll_monitor(void* args);
+void* epoll_monitor (void* args);
 
 
 
