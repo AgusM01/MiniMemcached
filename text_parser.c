@@ -16,10 +16,13 @@
 
 char** text_parser(char* text, int* cant_comm, char* delimiter){
 
-    printf("entre al paarser mostro\n");
     char** res = malloc(sizeof(char*)*SIZE);
-    int m = SIZE, i = 0;
+    int i = 0;
 
+    /*Reinicio la cantidad de comandos*/     
+    *cant_comm = 0;
+    
+    //int m = SIZE;
     /*Por qué no realocar? -> Si realoco se rompe porque cambia las direcciones de memoria y los punteros se desactualizan*/
     /*Asumo que strtok hace algo falopa que realloca solo.*/
     res[i] = strtok(text, delimiter);

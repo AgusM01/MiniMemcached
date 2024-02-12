@@ -1,13 +1,6 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-/*Argumentos para la funcion epoll_monitor*/
-struct args_epoll_monitor {
-    int epollfd;
-    int sockfd_text;
-    int sockfd_binary;
-};
-
 /*Estructura con la informacion de cada fd guardada en la parte de data de cada estructura epoll_event*/
 struct data_ptr {
     int fd;
@@ -17,6 +10,7 @@ struct data_ptr {
     int actual_pos_arr; /*Posicion actual del array delimit_pos*/ 
 };
 
+struct args_epoll_monitor; 
 /*Crea un socket TCP en dominio IPv4*/
 /*Retorna un fd que representa nuestro socket y al cual se conectarán los clientes.*/
 void sock_text_creation (int* sockfd);
@@ -34,8 +28,8 @@ void new_client (struct args_epoll_monitor* e_m_struct,
                  struct epoll_event* evlist);
 
 /*Consume el texto del fd de un cliente.*/
-void text_consume   (struct args_epoll_monitor* e_m_struct, 
-                     struct epoll_event* evlist);
+char** text_consume   (struct args_epoll_monitor* e_m_struct, 
+                     struct epoll_event* evlist, int* cant_comm);
 
 /*Le da un fd listo a cada thread*/
 void* epoll_monitor (void* args);

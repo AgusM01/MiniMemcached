@@ -412,6 +412,9 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
     sem_post(mem->queue_mutex);
     sem_post(mem->tab_shield[shield_index]);
     node_free(temp);
+    
+    if (temp == mem->tab[tab_index])
+        mem->tab[tab_index] = NULL;
 
     //LightSwitch Off -> Both
     ls_unlock(mem->evic, mem->evic_mutex);
