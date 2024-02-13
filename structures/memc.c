@@ -349,10 +349,11 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
 
             ls_unlock(mem->evic, mem->evic_mutex);
             //Pedimos memoria para devolver el dato
-            *data_buff = memc_alloc(mem,len);
+            *data_buff = memc_alloc(mem,len + 1);
             ls_lock(mem->evic, mem->evic_mutex);
 
             memcpy(*data_buff, temp->data_buff, len);
+            data_buff[len] = '\0';
 
             sem_wait(mem->queue_mutex);
             //Agregamos el nodo al principio de la queue

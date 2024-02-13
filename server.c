@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include "server.h"
 #include "text_parser.h"
 #include "structures/memc.h"
@@ -22,6 +23,7 @@
 #define N_COMMANDS 10
 #define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
 #define DELIMITER " \n"
+
 
 /*Argumentos para la funcion epoll_monitor*/
 struct args_epoll_monitor {
@@ -282,7 +284,8 @@ char** text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
     /*Reiniciamos la posicion actual del array*/
     //CAST_DATA_PTR->actual_pos_arr = 0; 
     int s = CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr];
-    char comm[s + 1];
+    //char comm[s + 1];
+    char* comm = malloc(s + 1);
     int read_comm;
     
     /*Como empieza a contar del 0, el \n sería el byte s + 1.*/
@@ -327,13 +330,25 @@ char** text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
 }
 
 void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, char** token_comands, int cant_comm){
-    char* err = "EINVAL\n";
-    char* ok = "OK\n";
+    
+    stats_t stats;
+
+    char* get_value;
+    
+    char einval[8] = "EINVAL\n";
+    char ok[4] = "OK\n";
+    char ebig[6] = "EBIG\n";
+    char ebinary[9] = "EBINARY\n";
+    char enotfound[11] = "ENOTFOUND\n";
+    char ok_get[4] = "OK ";
+    char stat_buf[MAX_CHAR];
+
     int snd = 0;
     int res;
-    printf("cant_comm: %d\n", cant_comm);
     int command = -1;
+    int len_stat_buf;
 
+    printf("cant_comm: %d\n", cant_comm);
     if (!strcmp(token_comands[0], "PUT")) 
         command = 0;
     if (!strcmp(token_comands[0], "DEL")) 
@@ -350,7 +365,7 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         || ((command == 2) && (cant_comm != 2))
         || ((command == 3) && (cant_comm != 1)))
         {
-        snd = send(CAST_DATA_PTR->fd, err, strlen(err), MSG_NOSIGNAL); /*La bandera ignora la señal SIGPIPE, de lo contrario hay que hacer un handler.*/
+        snd = send(CAST_DATA_PTR->fd, einval, 7, MSG_NOSIGNAL); /*La bandera ignora la señal SIGPIPE, de lo contrario hay que hacer un handler.*/
         assert(snd != -1); //VER QUE A VECES ANTE UN ATK NO MANDA EL EINVAL.
         struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
@@ -359,17 +374,21 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         return;
     }
 
-    if ((command == 0)){
+    if (command == 0){
+        
+        //printf("Pongo clave: %s, valor: %s\n Longitudes clave: %ld, valor: %ld\n", token_comands[1], token_comands[2], strlen(token_comands[1]),strlen(token_comands[2]));
+
         res = memc_put  (e_m_struct->mem, 
                         token_comands[1], 
                         token_comands[2], 
                         strlen(token_comands[1]),
                         strlen(token_comands[2]),
                         CAST_DATA_PTR->text_or_binary); /*TEXTO*/
-        send(CAST_DATA_PTR->fd, ok, strlen(ok), MSG_NOSIGNAL);
+        
+        snd = send(CAST_DATA_PTR->fd, ok, strlen(ok), MSG_NOSIGNAL);
         assert(snd != -1);
     }
-    if ((command == 1)){
+    if (command == 1){
         res = memc_del  (e_m_struct->mem,
                         token_comands[1],
                         strlen(token_comands[1]),
@@ -378,11 +397,40 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         if (res == 0)
             snd = send(CAST_DATA_PTR->fd, ok, strlen(ok), MSG_NOSIGNAL);
         else
-            snd = send(CAST_DATA_PTR->fd, err, strlen(err), MSG_NOSIGNAL); /*La bandera ignora la señal SIGPIPE, de lo contrario hay que hacer un handler.*/
+            snd = send(CAST_DATA_PTR->fd, einval, strlen(einval), MSG_NOSIGNAL); /*La bandera ignora la señal SIGPIPE, de lo contrario hay que hacer un handler.*/
         
         assert(snd != -1); //VER QUE A VECES ANTE UN ATK NO MANDA EL EINVAL.
     }
-    ////////////////////////
+    if (command == 2){
+        //printf("Busco: %s, longitud: %ld\n", token_comands[1], strlen(token_comands[1]));
+        res = memc_get  (e_m_struct->mem,
+                        token_comands[1], 
+                        strlen(token_comands[1]), 
+                        (void**)&get_value, 
+                        CAST_DATA_PTR->text_or_binary);
+
+        if (res == -1)
+            snd = send(CAST_DATA_PTR->fd, ebinary, strlen(ebinary), MSG_NOSIGNAL);
+        if (res == 0)
+            snd = send(CAST_DATA_PTR->fd, enotfound, strlen(enotfound), MSG_NOSIGNAL);
+        if (res > 0){
+            char resp[res + 5];
+            sprintf(resp, "OK %s\n", get_value);
+            if (strlen(ok_get) <= 2048)
+                snd = send(CAST_DATA_PTR->fd, resp, strlen(resp), MSG_NOSIGNAL);
+            else    
+                snd = send(CAST_DATA_PTR->fd, ebig, strlen(ebig), MSG_NOSIGNAL);
+        }
+        assert(snd != -1);
+    }
+    if (command == 3){
+
+        stats = memc_stats(e_m_struct->mem);
+        len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
+        assert(len_stat_buf > 0);
+        snd = send(CAST_DATA_PTR->fd, stat_buf, len_stat_buf, MSG_NOSIGNAL);
+        assert(snd != -1);
+    }
 
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
@@ -456,6 +504,7 @@ void* epoll_monitor(void* args){
                 if (tokens != NULL){
                     manage_client(e_m_struct, evlist, tokens, cant_comm);
                 }
+                free(tokens[0]);
                 free(tokens);
 
             }   
