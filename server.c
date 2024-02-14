@@ -154,9 +154,7 @@ char** text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
         * fst_read = -1 -> Error de lectura: Cubierto con assert.
         * fst_read = 0 -> EOF/Shutdown Peer socket. 
         * fst_read = n -> numero de bytes leidos. */
-
         if(fst_read != 0){ /*Leyó algo.*/
-            //printf("leí: %s\n", temp);
             /*Recorro lo leido para guardar los \n*/
             /*Si entró aca significa que no hay \n guardados, por lo que reiniciamos la pos del array.*/
 
@@ -174,7 +172,7 @@ char** text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
                         CAST_DATA_PTR->delimit_pos = realloc(CAST_DATA_PTR->delimit_pos, cant_commands);
                     }
 
-                    CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr] = i; /*Guardo la pos de los \n*/
+                    CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr] = i + 1; /*Guardo la pos de los \n , como empieza del 0 le sumo 1 para que el recv tambien lo consuma*/
                     CAST_DATA_PTR->actual_pos_arr += 1;
                 }
             }
@@ -220,13 +218,13 @@ char** text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
                     while ((pos_err_n == -1) && (atk < 3)){
                         for(int i = 0; i < err_read; i++){
                             if (temp[i] == '\n'){ 
-                                pos_err_n = i;
+                                pos_err_n = i + 1;
                                 //printf("i: %d\n", i);
                                 //printf("temp 3: %s \n", temp);
                             }
                         }
                         if (pos_err_n != -1){
-                            err_read = recv(CAST_DATA_PTR->fd, temp, pos_err_n + 1, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo, junto con el \n.*/
+                            err_read = recv(CAST_DATA_PTR->fd, temp, pos_err_n, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo, junto con el \n.*/
                             temp[err_read] = '\0';
                         }
                         else{
@@ -283,14 +281,18 @@ char** text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
     /*Los hilos que ya encuentren posiciones de \n solo haran esta parte. Los que no, deberán hacer todo lo anterior.*/
     /*Reiniciamos la posicion actual del array*/
     //CAST_DATA_PTR->actual_pos_arr = 0; 
+    int d = 0;
     int s = CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr];
-    //char comm[s + 1];
+    
+    if (CAST_DATA_PTR->actual_pos_arr > 0)
+        d = CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr - 1];
+    
+    s = s - d;
+
     char* comm = malloc(s + 1);
     int read_comm;
     
-    /*Como empieza a contar del 0, el \n sería el byte s + 1.*/
-    /*En la palabra hola\n por ejemplo el \n estaria en la pos. 4 pero es el 5to byte.*/
-    read_comm = recv(CAST_DATA_PTR->fd, comm, s + 1, 0);
+    read_comm = recv(CAST_DATA_PTR->fd, comm, s, 0);
     assert(read_comm != -1);
     comm[s + 1] = '\0'; /*Le agrego el terminador de cadena*/
     //printf("comm en s - 1: %c\n", comm[s - 1]);
@@ -431,12 +433,6 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         snd = send(CAST_DATA_PTR->fd, stat_buf, len_stat_buf, MSG_NOSIGNAL);
         assert(snd != -1);
     }
-
-    struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
-    ev.data.ptr = evlist->data.ptr;
-    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
-    return;
 }
 
 /*Le da un fd listo a cada thread*/
@@ -504,8 +500,14 @@ void* epoll_monitor(void* args){
                 if (tokens != NULL){
                     manage_client(e_m_struct, evlist, tokens, cant_comm);
                 }
+
                 free(tokens[0]);
                 free(tokens);
+
+                struct epoll_event ev;
+                ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
+                ev.data.ptr = evlist->data.ptr;
+                epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
 
             }   
         }
