@@ -7,7 +7,22 @@ struct data_ptr {
     int text_or_binary; /*0 para text, 1 para binary*/
     int* delimit_pos; /*Array de posiciones de \n*/
     int cant_comm_ptr; /*Cantidad de \n*/
-    int actual_pos_arr; /*Posicion actual del array delimit_pos*/ 
+    int actual_pos_arr; /*Posicion actual del array delimit_pos*/
+    struct data_ptr_binary* binary;
+};
+
+struct data_ptr_binary{
+    int fd;
+    int binary_to_read_commands; /*Comandos que quedan para leer*/
+    char* commands; /*Aca esta raro*/
+    char* key;
+    char* dato;
+    int length_key;
+    int length_dato;
+    int to_consumed; /*Bytes de clave/dato que quedan por consumir*/
+    int data_or_key;
+    int text_or_binary;
+
 };
 
 struct args_epoll_monitor; 
@@ -25,7 +40,8 @@ void epoll_add  (int sockfd,
 
 /*Conecta a un nuevo cliente.*/
 void new_client (struct args_epoll_monitor* e_m_struct, 
-                 struct epoll_event* evlist);
+                 struct epoll_event* evlist,
+                 int mode);
 
 /*Consume el texto del fd de un cliente.*/
 char** text_consume   (struct args_epoll_monitor* e_m_struct, 
@@ -33,6 +49,8 @@ char** text_consume   (struct args_epoll_monitor* e_m_struct,
 
 /*Le da un fd listo a cada thread*/
 void* epoll_monitor (void* args);
+
+void length_binary(char* commands, int* length);
 
 
 
