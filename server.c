@@ -46,7 +46,7 @@ struct args_epoll_monitor {
 void sock_creation(int* sockfd, int port_num){
     //Ver lectura no bloqueante 
     *sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    assert(*sockfd != -1);
+    perror("sock_creation");
 
     /*Instancia la estructura*/
     struct sockaddr_in sa;
@@ -59,7 +59,7 @@ void sock_creation(int* sockfd, int port_num){
 
     // Ponemos el socket en escucha.
     listen(*sockfd, SOMAXCONN);
-    assert(*sockfd != -1);
+    perror("sock_listen");
     return;
 }
 
@@ -67,7 +67,7 @@ void sock_creation(int* sockfd, int port_num){
 void epoll_initiate(int* epollfd){
 
     *epollfd = epoll_create(1);
-    assert(*epollfd != -1);
+    perror("epoll_create");
     
     return;
 }
@@ -113,9 +113,9 @@ void epoll_add(int sockfd, int epollfd, int mode){
 
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; //NO USAR EDGE TRIGGERED YA QUE SI UN HILO MANDA MUCHISIMO NO VA A AVISAR PENSAR CHARLADO CON NERI ESCUCHAR AUDIO ZOE
     
-    int fcntl_ret;
-    fcntl_ret = fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK));
-    assert(fcntl_ret != -1);
+    
+    fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK));
+    perror("fcntl_ret");
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
     return;
