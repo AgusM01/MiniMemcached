@@ -18,7 +18,7 @@ char** text_parser(char* text, int* cant_comm, char* delimiter){
 
     char** res = malloc(sizeof(char*)*SIZE);
     int i = 0;
-
+    printf("Text en parser: %s\n", text);
     /*Reinicio la cantidad de comandos*/     
     *cant_comm = 0;
     

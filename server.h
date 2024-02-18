@@ -8,21 +8,23 @@ struct data_ptr {
     int* delimit_pos; /*Array de posiciones de \n*/
     int cant_comm_ptr; /*Cantidad de \n*/
     int actual_pos_arr; /*Posicion actual del array delimit_pos*/
+    char* command;
+    int readed;
+    int missing;
     struct data_ptr_binary* binary;
 };
 
 struct data_ptr_binary{
     int fd;
     int binary_to_read_commands; /*Comandos que quedan para leer*/
-    char* commands; /*Aca esta raro*/
+    int comandos_leidos;
+    unsigned char* commands; /*Aca esta raro*/
     char* key;
     char* dato;
     int length_key;
     int length_dato;
     int to_consumed; /*Bytes de clave/dato que quedan por consumir*/
     int data_or_key;
-    int text_or_binary;
-
 };
 
 struct args_epoll_monitor; 
@@ -44,14 +46,21 @@ void new_client (struct args_epoll_monitor* e_m_struct,
                  int mode);
 
 /*Consume el texto del fd de un cliente.*/
-char** text_consume   (struct args_epoll_monitor* e_m_struct, 
-                     struct epoll_event* evlist, int* cant_comm);
+void text_consume   (struct args_epoll_monitor* e_m_struct, 
+                     struct epoll_event* evlist);
 
 /*Le da un fd listo a cada thread*/
 void* epoll_monitor (void* args);
 
-void length_binary(char* commands, int* length);
+void length_binary(unsigned char* commands, int* length);
 
+void int_to_binary(int num, void* len);
 
+void manage_client_binary(struct args_epoll_monitor* e_m_struct, 
+                     struct epoll_event* evlist);
+                     
+void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, char** token_comands, int cant_comm);
+
+void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
 
 #endif /*__SERVER_H__*/
