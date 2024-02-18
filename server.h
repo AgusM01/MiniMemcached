@@ -8,8 +8,9 @@ struct data_ptr {
     int* delimit_pos; /*Array de posiciones de \n*/
     int cant_comm_ptr; /*Cantidad de \n*/
     int actual_pos_arr; /*Posicion actual del array delimit_pos*/
-    int pos_n;
     char* command;
+    int readed;
+    int missing;
     struct data_ptr_binary* binary;
 };
 
@@ -45,8 +46,8 @@ void new_client (struct args_epoll_monitor* e_m_struct,
                  int mode);
 
 /*Consume el texto del fd de un cliente.*/
-char** text_consume   (struct args_epoll_monitor* e_m_struct, 
-                     struct epoll_event* evlist, int* cant_comm);
+void text_consume   (struct args_epoll_monitor* e_m_struct, 
+                     struct epoll_event* evlist);
 
 /*Le da un fd listo a cada thread*/
 void* epoll_monitor (void* args);
@@ -57,5 +58,7 @@ void int_to_binary(int num, void* len);
 
 void manage_client_binary(struct args_epoll_monitor* e_m_struct, 
                      struct epoll_event* evlist);
+                     
+void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, char** token_comands, int cant_comm);
 
 #endif /*__SERVER_H__*/
