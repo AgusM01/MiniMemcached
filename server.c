@@ -91,6 +91,8 @@ void epoll_add(int sockfd, int epollfd, int mode){
         d_ptr->delimit_pos = malloc(4*N_COMMANDS); /*Liberar esto*/
         d_ptr->binary = NULL;
         d_ptr->command = malloc(MAX_CHAR + 1);
+        d_ptr->missing = 0;
+        d_ptr->readed = 0;
     }
     if (mode == 1){
         struct data_ptr_binary* binary = malloc(sizeof(struct data_ptr_binary));
@@ -745,6 +747,7 @@ void* epoll_monitor(void* args){
             atendida por un hilo. Ese hilo debe volver a activar las notificaciones de
             ese cliente. El hilo responde una consulta sola y lo vuelve a meter al epoll asi puede ir a atender a mas hilos*/
         a = epoll_wait(e_m_struct->epollfd, evlist, MAX_EVENTS, -1);
+        perror("epoll_wait");
         assert(a != -1);
 
         printf("Atiendo a fd: %d, soy hilo: %ld\n", CAST_DATA_PTR->fd, pthread_self());
@@ -757,10 +760,21 @@ void* epoll_monitor(void* args){
         if ((evlist->events & EPOLLRDHUP) 
             || (evlist->events & EPOLLERR)
             || (evlist->events & EPOLLHUP)){
-            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
-            close(CAST_DATA_PTR->fd);
+            
             printf("fd cerrado: %d\n", CAST_DATA_PTR->fd);
-            free(CAST_DATA_PTR->delimit_pos);
+            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
+            if(!CAST_DATA_PTR->text_or_binary){
+                close(CAST_DATA_PTR->fd);
+                free(CAST_DATA_PTR->command);
+                free(CAST_DATA_PTR->delimit_pos);
+            }
+            else{
+                close(CAST_DATA_PTR->fd);
+                free(CAST_DATA_PTR_BINARY->commands);
+                free(CAST_DATA_PTR_BINARY->dato);
+                free(CAST_DATA_PTR_BINARY->key);
+                free(CAST_DATA_PTR_BINARY);
+            }
             free(CAST_DATA_PTR);
         }
         else{
