@@ -462,13 +462,13 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
         CAST_DATA_PTR->actual_pos_arr = 0;
         for (int i = 0; i < fst_read; i++){
             if(temp[i] == '\n'){
-                //printf("como encontre esto? i= %d\n", i);
+                printf("Lo encontré i= %d\n", i);
                 valid = 1;
                 CAST_DATA_PTR->cant_comm_ptr += 1;
                 /*Posiblemente nunca deba ejecutarse pero por las dudas.*/
                 if(CAST_DATA_PTR->cant_comm_ptr == cant_commands){ 
                     cant_commands *= 2;
-                    CAST_DATA_PTR->delimit_pos = realloc(CAST_DATA_PTR->delimit_pos, cant_commands);
+                    CAST_DATA_PTR->delimit_pos = realloc(CAST_DATA_PTR->delimit_pos, cant_commands * 4);
                 }
                 CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr] = i + 1; /*Guardo la pos de los \n , como empieza del 0 le sumo 1 para que el recv tambien lo consuma*/
                 CAST_DATA_PTR->actual_pos_arr += 1;
@@ -478,7 +478,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
         CAST_DATA_PTR->actual_pos_arr = 0; 
         /*Que hacer si de base es un error <- La idea es que el hilo consuma todo el error asi deja a los demas hilos con futuros comandos válidos.*/
         /*Notar que CREO que bash pone justo \n cada 2048 caracteres*/
-        if (!valid && fst_read == MAX_CHAR){ /*No hay ningun \n en 2048 bytes. Debo leer más para encontrarlo y descartar ese comando*/
+        if ((!valid && fst_read == MAX_CHAR) || CAST_DATA_PTR->readed >= 2048){ /*No hay ningun \n en 2048 bytes. Debo leer más para encontrarlo y descartar ese comando*/
             printf("Leí error, trataré de consumirlo.\n");
             err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, 0); /*Consumo los 2048 primeros caracteres donde no hay \n*/
             assert(err_read != -1);
@@ -552,10 +552,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 /*No fue ataque, lo vuelvo a monitorear*/
                 /*Reactivamos el fd para monitoreo (EPOLLONESHOT activado)*/
                 printf("se la perdono...\n");
-                struct epoll_event ev;
-                ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
-                ev.data.ptr = evlist->data.ptr;
-                epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
+                CAST_DATA_PTR->readed = 0;
                 return;
                 /*Enviar einval y sacarlo, hacerla mas facil.*/
             }
@@ -572,6 +569,8 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             assert(fst_read != -1); /*Si se desconecta justo ahora daria 0 y se romperia*/
             CAST_DATA_PTR->readed += fst_read; /*Si ya pasaron 2048 sin \n lo vuelo*/
             CAST_DATA_PTR->missing = 1;
+            printf("Command: %s\n", CAST_DATA_PTR->command);
+            return;
         }
     }
     
@@ -588,11 +587,12 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
         d = CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr - 1];
     
     s = s - d;
-    if (CAST_DATA_PTR->missing){
+    if (CAST_DATA_PTR->missing){ //Lo tengo que unir
         int rec;
-        rec = recv(CAST_DATA_PTR->fd, CAST_DATA_PTR->command + CAST_DATA_PTR->readed, s, 0);
+        rec = recv(CAST_DATA_PTR->fd, CAST_DATA_PTR->command + CAST_DATA_PTR->readed, fst_read, 0);
         assert(rec != -1);
-        CAST_DATA_PTR->command[s + 1] = '\0';
+        printf("command pre token: %s\n", CAST_DATA_PTR->command);
+        CAST_DATA_PTR->command[CAST_DATA_PTR->readed + fst_read] = '\0';
         token_commands = text_parser(CAST_DATA_PTR->command, &cant_comm, DELIMITER);
     }
     else{
