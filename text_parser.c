@@ -16,20 +16,26 @@
 
 char** text_parser(char* text, int* cant_comm, char* delimiter){
 
-    char** res = malloc(sizeof(char*)*SIZE);
+    char** res = malloc(sizeof(char*)*4);
+    char* tokbuf[1] ;
     int i = 0;
-    printf("Text en parser: %s\n", text);
+    printf("Text en parser: %s", text);
     /*Reinicio la cantidad de comandos*/     
     *cant_comm = 0;
-    
+    tokbuf[0] = NULL;
     //int m = SIZE;
     /*Por qué no realocar? -> Si realoco se rompe porque cambia las direcciones de memoria y los punteros se desactualizan*/
     /*Asumo que strtok hace algo falopa que realloca solo.*/
-    res[i] = strtok(text, delimiter);
+    res[i] = strtok_r(text, delimiter, tokbuf);
     while(res[i] != NULL){
         *cant_comm += 1;
         i++;
-        res[i] = strtok(NULL, delimiter);
+        if (i > 3){
+            free(res[0]);
+            free(res);
+            return NULL;
+        }
+        res[i] = strtok_r(NULL, delimiter, tokbuf);
     }
 
     //printf("cant_comm: %d\n", *cant_comm);
