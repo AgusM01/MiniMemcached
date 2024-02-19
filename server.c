@@ -20,7 +20,7 @@
 #define PORT_NUM_TEXT   8888
 #define PORT_NUM_BIN    8889
 #define MAX_EVENTS 1
-#define MAX_CHAR 50
+#define MAX_CHAR 2048
 #define N_COMMANDS 10
 #define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
 #define CAST_DATA_PTR_BINARY CAST_DATA_PTR->binary
@@ -113,7 +113,6 @@ void epoll_add(int sockfd, int epollfd, int mode){
     
 
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; //NO USAR EDGE TRIGGERED YA QUE SI UN HILO MANDA MUCHISIMO NO VA A AVISAR PENSAR CHARLADO CON NERI ESCUCHAR AUDIO ZOE
-    
     
     fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK));
     perror("fcntl_ret");
@@ -523,7 +522,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 quit_epoll(e_m_struct, evlist);
             return;
         }
-
+        printf("fst_read: %ld\n", fst_read);
         /*Ubicamos terminador de cadena.*/
         temp[fst_read] = '\0';
         /* 3 casos:
@@ -558,8 +557,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, 0); /*Consumo los 2048 primeros caracteres donde no hay \n*/
             perror("error_recv_error");
             if (err_read <= 0){
-                if(err_read != -1 || (errno != EWOULDBLOCK && errno != EAGAIN))            
-                    quit_epoll(e_m_struct, evlist);
+                quit_epoll(e_m_struct, evlist);
                 return;
             }
             
@@ -568,8 +566,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, MSG_PEEK);
             perror("error_recv_error");
             if (err_read <= 0){
-                if(err_read != -1 || (errno != EWOULDBLOCK && errno != EAGAIN))            
-                    quit_epoll(e_m_struct, evlist);
+                quit_epoll(e_m_struct, evlist);
                 return;
             }
             //printf("err_read: %d\n", err_read);
@@ -587,7 +584,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 if (pos_err_n != -1){
                     err_read = recv(CAST_DATA_PTR->fd, temp, pos_err_n, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo, junto con el \n.*/
                     perror("error_recv_error");
-                    if (err_read == 0 || err_read == -1){
+                    if (err_read <= 0){
                         quit_epoll(e_m_struct, evlist);
                         return;
                     }
@@ -595,16 +592,20 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 }
                 else{
                     
-                    err_read = recv(CAST_DATA_PTR->fd, NULL, err_read, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo,*/
-                    perror("error_recv_error");
+                    err_read = recv(CAST_DATA_PTR->fd, temp, err_read, 0); /*Leo los caracteres que se que pertenecen al mensaje erróneo,*/
+                    perror("error_recv_error_1");
                     if (err_read <= 0){
-                        if(err_read != -1 || (errno != EWOULDBLOCK && errno != EAGAIN))            
-                            quit_epoll(e_m_struct, evlist);
+                        quit_epoll(e_m_struct, evlist);
                         return;
                     }
-                    
+                    temp[err_read] = '\0';
                     err_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, MSG_PEEK); /*Leo 2048 más para ver si esta el \n, sin consumir.*/
-                    perror("error_recv_error");
+                    perror("error_recv_error_2");
+                    printf("err_read: %ld\n", err_read);
+                    if (err_read <= 0){
+                        quit_epoll(e_m_struct, evlist);
+                        return;
+                    }
                     temp[err_read] = '\0';
                     if (!err_read){
                         pos_err_n = 0; /*Leyó EOF por lo que termino el while y hago que se le mande el msg de error*/
@@ -633,7 +634,6 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             printf("se la perdono...\n");
             CAST_DATA_PTR->readed = 0;
             return;
-            /*Enviar einval y sacarlo, hacerla mas facil.*/
         }
         if(!valid){ /*No leyó ningun \n, debo esperar a que llegue el resto del pedido.*/
 
@@ -655,6 +655,8 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 return;
             }
             CAST_DATA_PTR->readed += fst_read; /*Si ya pasaron 2048 sin \n lo vuelo*/
+            if (CAST_DATA_PTR->readed < MAX_CHAR)
+                CAST_DATA_PTR->command[CAST_DATA_PTR->readed] = '\0';
             CAST_DATA_PTR->missing = 1;
             printf("Command: %s\n", CAST_DATA_PTR->command);
             return;
@@ -707,13 +709,14 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     CAST_DATA_PTR->actual_pos_arr += 1;
     CAST_DATA_PTR->cant_comm_ptr -= 1; 
 
-    for (int i = 0; i < cant_comm; i++)
-        printf("comando %d = %s\n", i, token_commands[i]);
+    //for (int i = 0; i < cant_comm; i++)
+    //    printf("comando %d = %s\n", i, token_commands[i]);
 
     manage_client(e_m_struct, evlist, token_commands, cant_comm);
     
     free(token_commands);
-    
+    CAST_DATA_PTR->missing = 0;
+    CAST_DATA_PTR->readed = 0;
     return; 
 
 }
@@ -759,6 +762,8 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     int len_stat_buf;
 
     printf("cant_comm: %d\n", cant_comm);
+    if (cant_comm == 0)
+        return;
     if (!strcmp(token_comands[0], "PUT")) 
         command = 0;
     if (!strcmp(token_comands[0], "DEL")) 
