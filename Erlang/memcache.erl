@@ -1,5 +1,5 @@
 -module(memcache).
--export([start/1,get/2,put/3,del/2,stats/1]).
+-export([start/1,get/2,put/3,del/2,stats/1,encode_data/2]).
 
 start(Host) ->
     {ok, S} = gen_tcp:connect(Host, 8889, [binary, {active, false}]),
@@ -21,13 +21,18 @@ decode_to_int(Bin) ->
 server(S) -> 
     receive
         {From, stats, nan} ->
-            gen_tcp:send(S, <<21>>),
-            From ! {self(), recv_cmd(S, stats)};
+            case gen_tcp:send(S, <<21>>) of
+                ok -> From ! {self(), recv_cmd(S, stats)};
+                Error -> From ! {self(), Error}
+            end;
         {From, Cmd, Args} ->
             BinToSend = encode_data(Cmd, Args),
-            gen_tcp:send(S,BinToSend),
-            From ! {self(), recv_cmd(S, Cmd)}
-    end.
+            case gen_tcp:send(S,BinToSend) of
+                ok -> From ! {self(), recv_cmd(S, Cmd)};
+                Error -> From ! {self(), Error}
+            end
+    end,
+    server(S).
 
 
 encode_data(put, Args) ->
@@ -50,18 +55,21 @@ encode_data(Cmd, Key) ->
 
 
 recv_cmd(S, stats) ->
+    io:format("HOla"),
     case gen_tcp:recv(S, 1) of
         {ok, <<101>>} -> recv_len(S);
         Error -> Error
     end; 
 
 recv_cmd(S, put) ->
+    io:format("rcv cmd put~n"),
     case gen_tcp:recv(S,1) of
         {ok, <<101>>} -> ok;
         Error -> Error
     end;
 
 recv_cmd(S, Cmd) ->
+    io:format("rcv cmd ~n"),
     case gen_tcp:recv(S, 1) of
         {ok, <<101>>} -> 
             case Cmd of
@@ -73,6 +81,7 @@ recv_cmd(S, Cmd) ->
     end.
 
 recv_len(S) ->
+    io:format("Recv_len~n"),
     case gen_tcp:recv(S, 4) of
         {ok, BinLen} -> gen_tcp:recv(S, decode_to_int(BinLen));
         Error -> Error
