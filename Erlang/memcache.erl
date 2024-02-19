@@ -1,34 +1,13 @@
 -module(memcache).
--export([connect_server/1]).
+-export([start/1,get/2,put/3,del/2,stats/1]).
 
-connect_server(Host) ->
+start(Host) ->
     {ok, S} = gen_tcp:connect(Host, 8889, [binary, {active, false}]),
     PidServer = spawn (fun() -> server(S) end),
     PidServer.
 
-
-
-get_cmd(S, Msg) ->
-    case Msg of
-        <<Cmd:1,Rest/bitstring>> ->
-            {Cmd, Rest};
-        <<Cmd:1>> ->
-            receive
-                {tcp, S, }
-
-
-int_bin_rep(N) ->
-    List = int_bin_rep(N,[]),
-    list_to_binary(list).
-
-%int_bin_rep(N, List) ->
-
-
-
-
-
-encode_big(N) ->
-    Bin = binary:decode_unsigned(N),
+encode_to_big(N) ->
+    Bin = binary:encode_unsigned(N),
     case byte_size(Bin) of
         1 -> list_to_binary([[0,0,0] | binary_to_list(Bin)]);
         2 -> list_to_binary([[0,0]   | binary_to_list(Bin)]);
@@ -36,30 +15,93 @@ encode_big(N) ->
         4 -> Bin
     end.
 
+decode_to_int(Bin) ->
+    binary:decode_unsigned(Bin).
 
 server(S) -> 
     receive
         {From, stats, nan} ->
-            gen_tcp:send(S, <<21>>);
+            gen_tcp:send(S, <<21>>),
+            From ! {self(), recv_cmd(S, stats)};
         {From, Cmd, Args} ->
-            case get_data(S, Key) of
-                {ok, Msg} -> From ! {self(), Msg};
-                einval -> From ! einval
-            end
-        end.
-encode_data(put, {Key, Value}) ->
-    Cmd = 11,
+            BinToSend = encode_data(Cmd, Args),
+            gen_tcp:send(S,BinToSend),
+            From ! {self(), recv_cmd(S, Cmd)}
+    end.
+
+
+encode_data(put, Args) ->
+    {Key, Value} = Args,
     BinKey = term_to_binary(Key),
-    LenKey = encode_big(byte_size(BinKey)),
+    LenKey = encode_to_big(byte_size(BinKey)),
     BinValue = term_to_binary(Value),
-    LenValue = encode_big(byte_size(BinValue)),
-    list_to_binary([Cmd,LenKey,BinKey,LenValue,BinValue]);
+    LenValue = encode_to_big(byte_size(BinValue)),
 
-encode_data(stats, Key) ->
-    Cmd = 12,
+    list_to_binary([11,LenKey,BinKey,LenValue,BinValue]);
+
+encode_data(Cmd, Key) ->
+    case Cmd of
+        del -> N = 12;
+        get -> N = 13
+    end,
     BinKey = term_to_binary(Key),
-    LenKey = encode_big(byte_size(BinKey)),
-    list_to_binary([Cmd,LenKey,BinKey])
+    LenKey = encode_to_big(byte_size(BinKey)),
+    list_to_binary([N,LenKey,BinKey]).
 
 
+recv_cmd(S, stats) ->
+    case gen_tcp:recv(S, 1) of
+        {ok, <<101>>} -> recv_len(S);
+        Error -> Error
+    end; 
 
+recv_cmd(S, put) ->
+    case gen_tcp:recv(S,1) of
+        {ok, <<101>>} -> ok;
+        Error -> Error
+    end;
+
+recv_cmd(S, Cmd) ->
+    case gen_tcp:recv(S, 1) of
+        {ok, <<101>>} -> 
+            case Cmd of
+            get -> recv_len(S);
+            del -> ok
+            end;
+        {ok, <<112>>} -> {error, enotfound};
+        Error -> Error
+    end.
+
+recv_len(S) ->
+    case gen_tcp:recv(S, 4) of
+        {ok, BinLen} -> gen_tcp:recv(S, decode_to_int(BinLen));
+        Error -> Error
+    end.
+
+put(PidServer, Key, Value) ->
+    PidServer ! {self(), put, {Key, Value}},
+    receive
+        {PidServer, ok} -> ok;
+        Error -> Error
+    end.
+
+get(PidServer, Key) ->
+    PidServer ! {self(), get, Key},
+    receive
+        {PidServer, {ok, Value}} -> binary_to_term(Value);
+        Error -> Error
+    end.
+
+del(PidServer, Key) ->
+    PidServer ! {self(), get, Key},
+    receive
+        {PidServer, ok} -> ok;
+        Error -> Error
+    end.
+
+stats(PidServer) ->
+    PidServer ! {self(), stats},
+    receive
+        {PidServer, {ok, Stats}} -> binary_to_term(Stats);
+        Error -> Error
+    end.
