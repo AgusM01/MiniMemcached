@@ -155,40 +155,62 @@ void memc_unlock(memc_t mem) {
     sem_post(mem->evic_mutex);
 }
 
-int memc_eviction(memc_t mem, size_t bytes) {
+int memc_eviction(memc_t mem) {
 
     int count = 0;
     size_t memory = 0; //Lleva control de la memoria liberada.
     node_t* tbd;       //Nodo To Be Destroy 
 
     // Mientras la queue tenga nodos para liberar y le memoria
-    // liberada sea menor a la requerida.
-    while(memory < bytes && (tbd = queue_dqlru(mem->queue))) {
+    // liberada sea menor que el tamaño definido.
+    while(memory < D_MEMORY_BLOCK && (tbd = queue_dqlru(mem->queue))) {
         memory += sizeof(node_t) + tbd->data_len + tbd->key_len;
         node_free(tbd);
         count++;
     }
 
-    //Si tbd es NULL, no hay memoria en el sistema, por lo que devolvemos -1;
+    //Si tbd es NULL, no hay memoria en la queue, por lo que devolvemos -1;
     return tbd ? count : -1; 
 }
 
-void* memc_alloc(memc_t mem, size_t bytes) {
+void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
     void* ret;
     int keys;
+    int flag = 1;
 
-    //sem_wait(mem->memory_mutex);
-    if (!(ret = malloc(bytes))) { // ret == NULL
+    switch (fun) {
+        case MALLOC:
+            ret = malloc(bytes);
+        case CALLOC:
+            ret = calloc(bytes, bytes);
+        case REALLOC:
+            ret = realloc(rea , bytes);
+    }
+
+    while (!ret && flag) { // ret == NULL
         memc_lock(mem);
         // REGIÓN CRÍTICA 
-        if((keys = memc_eviction(mem, bytes)) == -1)
-            assert(0);
+        if((keys = memc_eviction(mem)) == -1) {
+            flag = 0;
+            stat_put(mem->keys, 0);
+        }
         
         stat_add(mem->keys, -keys);
         memc_unlock(mem);
-        ret = malloc(bytes);
+        switch (fun) {
+            case MALLOC:
+                ret = malloc(bytes);
+            case CALLOC:
+                ret = calloc(bytes, bytes);
+            case REALLOC:
+                ret = realloc(rea , bytes);
+        }
+
+        if(!ret) {
+            perror("memc_eviction");
+        }
+
     }
-    //sem_post(mem->memory_mutex);
     return ret;
 }
 
@@ -204,7 +226,7 @@ void memc_rehash(memc_t mem){
         //   stat_unlock(mem->keys);
 
         unsigned new_size = mem->buckets * 2;
-        table_t new_tab = memc_alloc(mem, sizeof(node_t*) * new_size);
+        table_t new_tab = memc_alloc(mem, sizeof(node_t*) * new_size, MALLOC, NULL);
 
         for (int i = 0; i < new_size; i++) {
             new_tab[i] = NULL;
@@ -257,7 +279,7 @@ int memc_put(
     unsigned shield_index = i % mem->shield_size;
     node_t* temp = NULL;
 
-    void* buff_data = memc_alloc(mem, data_len);
+    void* buff_data = memc_alloc(mem, data_len, MALLOC, NULL);
     memcpy(buff_data, data, data_len);
 
     //Mutex Hash
@@ -280,8 +302,8 @@ int memc_put(
         ls_unlock(mem->evic, mem->evic_mutex);  
 
         //Alocamos memoria para crear el nodo;
-        temp = memc_alloc(mem, sizeof(node_t));
-        void* buff_key = memc_alloc(mem, key_len);
+        temp = memc_alloc(mem, sizeof(node_t), MALLOC, NULL);
+        void* buff_key = memc_alloc(mem, key_len, MALLOC, NULL);
 
         //LightSwitch On -> alloc
         ls_lock(mem->evic, mem->evic_mutex);
@@ -349,7 +371,7 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
 
             ls_unlock(mem->evic, mem->evic_mutex);
             //Pedimos memoria para devolver el dato
-            *data_buff = memc_alloc(mem,len + 1);
+            *data_buff = memc_alloc(mem,len + 1, MALLOC, NULL);
             ls_lock(mem->evic, mem->evic_mutex);
 
             memcpy(*data_buff, temp->data_buff, len);
@@ -429,7 +451,7 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
 
 //Xd -> Cambiar la onda, tal vez con el buffer ya armado.
 stats_t memc_stats(memc_t mem) {
-    stats_t st = memc_alloc(mem, sizeof(struct Stats));
+    stats_t st = memc_alloc(mem, sizeof(struct Stats), MALLOC, NULL);
     stat_lock(mem->gets);
     stat_lock(mem->puts);
     stat_lock(mem->dels);

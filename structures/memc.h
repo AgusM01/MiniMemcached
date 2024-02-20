@@ -9,11 +9,19 @@
 
 #define INITIAL_BUCKETS 2
 #define SHIELD_AMOUNT 500
+#define D_MEMORY_BLOCK 4096
 
 #define TEXTO 0
 #define BINARIO 1
 
 struct MemCache;
+
+//Opciones para memc_alloc
+typedef enum fun {
+    MALLOC,
+    CALLOC,
+    REALLOC
+} fun_t;
 
 struct Stats {
   size_t puts;
@@ -26,6 +34,11 @@ typedef struct Stats* stats_t;
 
 typedef struct MemCache* memc_t;
 
+
+
+// Función para iniciar la estructura de la memcache.
+// 
+// 
 memc_t memc_init(
     HasFunc hash,
     unsigned tab_size,
@@ -61,6 +74,6 @@ int memc_del(
 
 stats_t memc_stats(memc_t m);
 
-void* memc_alloc(memc_t mem, size_t bytes);
+void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea);
 
 #endif
