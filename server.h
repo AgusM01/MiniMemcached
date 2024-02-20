@@ -15,7 +15,6 @@ struct data_ptr {
 };
 
 struct data_ptr_binary{
-    int fd;
     int binary_to_read_commands; /*Comandos que quedan para leer*/
     int comandos_leidos;
     unsigned char* commands; /*Aca esta raro*/

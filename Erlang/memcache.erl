@@ -28,7 +28,9 @@ server(S) ->
         {From, Cmd, Args} ->
             BinToSend = encode_data(Cmd, Args),
             case gen_tcp:send(S,BinToSend) of
-                ok -> From ! {self(), recv_cmd(S, Cmd)};
+                ok ->
+                    io:format("Mando~n"), 
+                    From ! {self(), recv_cmd(S, Cmd)};
                 Error -> From ! {self(), Error}
             end
     end,
@@ -102,7 +104,7 @@ get(PidServer, Key) ->
     end.
 
 del(PidServer, Key) ->
-    PidServer ! {self(), get, Key},
+    PidServer ! {self(), del, Key},
     receive
         {PidServer, ok} -> ok;
         Error -> Error
@@ -111,6 +113,6 @@ del(PidServer, Key) ->
 stats(PidServer) ->
     PidServer ! {self(), stats},
     receive
-        {PidServer, {ok, Stats}} -> binary_to_term(Stats);
+        {PidServer, {ok, Stats}} -> binary_to_list(Stats);
         Error -> Error
     end.
