@@ -1,9 +1,62 @@
 -module(test).
 -import(memcache, []).
--export([prueba/0]).
+-export([prueba/0, destruccion_total/1, readlines/1]).
+
 
 prueba() ->
-    {ok, S} = gen_tcp:connect(localhost, 8889, [binary, {active, false}]),
-    %BinToSend = memcache:encode_data(put, {"Agustin", "Merino"}),
-    gen_tcp:send(S,<<11,0,0,0,2,22,22,0,0,0,3,33,33,33>>),
-    gen_tcp:recv(S,1).
+    LoQueMando = readlines("bible.txt"),
+    S = memcache:start(localhost),
+    memcache:put(S, pruba, LoQueMando),
+    memcache:get(S, pruba),
+    memcache:del(S, pruba),
+    memcache:close(S).
+
+
+destruccion_total(0) ->
+    S = memcache:start(localhost),
+    spawn(fun() -> proc_incha(S, 1000) end);
+
+destruccion_total(N) ->
+    S = memcache:start(localhost),
+    spawn(fun() -> proc_incha(S, 1000) end),
+    destruccion_total(N - 1).
+
+proc_incha(S, N) ->
+    self() ! mandale,
+    receive
+        mandale -> 
+            pedidos(S, self(), N, N),
+            proc_incha(S, N);
+        stop -> ok
+    end.
+
+pedidos(S, P, 0, N) ->
+    memcache:put(S, {P, 0, ok}, 0),
+    memcache:get(S, {P, N, ok}),
+    memcache:del(S, {P, N, ok}),
+    memcache:put(S, {0, ok}, 0),
+    memcache:get(S, {N, ok}),
+    memcache:del(S, {N, ok});
+
+pedidos(S, P, M, N) ->
+    memcache:put(S, {P, M, ok}, 0),
+    memcache:get(S, {P, M - 1, ok}),
+    memcache:del(S, {P, M - 1, ok}),
+    memcache:put(S, {M, ok}, 0),
+    memcache:get(S, {M - 1, ok}),
+    memcache:del(S, {M - 1, ok}),
+    pedidos(S, P, M - 1, N).
+
+readlines(FileName) ->
+    {ok, Device} = file:open(FileName, [read]),
+    try get_all_lines(Device)
+        after file:close(Device)
+    end.
+
+get_all_lines(Device) ->
+    case io:get_line(Device, "") of
+        eof -> [];
+        Line -> Line ++ get_all_lines(Device)
+    end.
+
+
