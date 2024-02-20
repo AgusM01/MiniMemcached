@@ -51,3 +51,9 @@ void stat_dec(stat_t *st) {
 size_t stat_get(stat_t *st) {
     return st->count;
 }
+
+void stat_put(stat_t *st, size_t n){
+    sem_wait(st->mutex);
+    st->count = n;
+    sem_post(st->mutex);
+}

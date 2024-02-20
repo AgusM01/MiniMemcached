@@ -14,12 +14,12 @@
 #include "text_parser.h"
 
 
-char** text_parser(char* text, int* cant_comm, char* delimiter){
+char** text_parser(char* text, int* cant_comm, char* delimiter, memc_t mem){
 
-    char** res = malloc(sizeof(char*)*4);
+    char** res = memc_alloc(mem, sizeof(char*)*4, MALLOC, NULL);
     char* tokbuf[1] ;
     int i = 0;
-    printf("Text en parser: %s", text);
+    //printf("Text en parser: %s", text);
     /*Reinicio la cantidad de comandos*/     
     *cant_comm = 0;
     tokbuf[0] = NULL;

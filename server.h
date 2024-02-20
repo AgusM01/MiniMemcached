@@ -1,6 +1,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
+#include "structures/memc.h"
 /*Estructura con la informacion de cada fd guardada en la parte de data de cada estructura epoll_event*/
 struct data_ptr {
     int fd;
@@ -37,7 +38,8 @@ void epoll_initiate (int* epollfd);
 /*Añade los fd a la instancia de epoll para monitorearlos*/
 void epoll_add  (int sockfd, 
                  int epollfd, 
-                 int mode);
+                 int mode,
+                 memc_t mem);
 
 /*Conecta a un nuevo cliente.*/
 void new_client (struct args_epoll_monitor* e_m_struct, 
@@ -45,7 +47,7 @@ void new_client (struct args_epoll_monitor* e_m_struct,
                  int mode);
 
 /*Consume el texto del fd de un cliente.*/
-void text_consume   (struct args_epoll_monitor* e_m_struct, 
+int text_consume   (struct args_epoll_monitor* e_m_struct, 
                      struct epoll_event* evlist);
 
 /*Le da un fd listo a cada thread*/
@@ -58,7 +60,7 @@ void int_to_binary(int num, void* len);
 int manage_client_binary(struct args_epoll_monitor* e_m_struct, 
                      struct epoll_event* evlist);
                      
-void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, char** token_comands, int cant_comm);
+int manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, char** token_comands, int cant_comm);
 
 void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
 

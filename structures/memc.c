@@ -161,14 +161,32 @@ int memc_eviction(memc_t mem) {
     size_t memory = 0; //Lleva control de la memoria liberada.
     node_t* tbd;       //Nodo To Be Destroy 
 
+    unsigned tab_index;
+
+    memc_lock(mem);
     // Mientras la queue tenga nodos para liberar y le memoria
     // liberada sea menor que el tamaño definido.
     while(memory < D_MEMORY_BLOCK && (tbd = queue_dqlru(mem->queue))) {
+        puts("Borro cosas.");
         memory += sizeof(node_t) + tbd->data_len + tbd->key_len;
+        printf("memory : %ld.\n", memory);
+        printf("tbd : %p.\n", tbd);
+        node_discc(HASH, tbd);
+
+        tab_index = mem->hash(tbd->key_buff,tbd->key_len);
+
         node_free(tbd);
+
+        if (tbd == mem->tab[tab_index])
+            mem->tab[tab_index] = NULL;
+
+        printf("tbd : %p.\n", tbd);
+
         count++;
     }
+    memc_unlock(mem);
 
+    stat_add(mem->keys, -count);
     //Si tbd es NULL, no hay memoria en la queue, por lo que devolvemos -1;
     return tbd ? count : -1; 
 }
@@ -178,39 +196,45 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
     int keys;
     int flag = 1;
 
+
+
     switch (fun) {
         case MALLOC:
             ret = malloc(bytes);
+            break;
         case CALLOC:
+            //puts("IMPOSIBLE");
             ret = calloc(bytes, bytes);
+            break;
         case REALLOC:
             ret = realloc(rea , bytes);
+            break;
     }
 
-    while (!ret && flag) { // ret == NULL
-        memc_lock(mem);
-        // REGIÓN CRÍTICA 
-        if((keys = memc_eviction(mem)) == -1) {
-            flag = 0;
-            stat_put(mem->keys, 0);
-        }
-        
-        stat_add(mem->keys, -keys);
-        memc_unlock(mem);
-        switch (fun) {
-            case MALLOC:
-                ret = malloc(bytes);
-            case CALLOC:
-                ret = calloc(bytes, bytes);
-            case REALLOC:
-                ret = realloc(rea , bytes);
+    if (!ret){
+
+        while (!ret && flag) { // ret == NULL
+            // REGIÓN CRÍTICA 
+            //puts("Holanda");
+            if((keys = memc_eviction(mem)) == -1)
+                flag = 0;
+            
+            switch (fun) {
+                case MALLOC:
+                    ret = malloc(bytes);
+                case CALLOC:
+                    ret = calloc(bytes, bytes);
+                case REALLOC:
+                    ret = realloc(rea , bytes);
+            }
         }
 
         if(!ret) {
             perror("memc_eviction");
         }
-
     }
+    
+
     return ret;
 }
 
@@ -375,7 +399,7 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
             ls_lock(mem->evic, mem->evic_mutex);
 
             memcpy(*data_buff, temp->data_buff, len);
-            printf("Len : %d\n", len);
+            //printf("Len : %d\n", len);
             ((char**)data_buff)[0][len]  = 0;
 
             sem_wait(mem->queue_mutex);
@@ -466,3 +490,4 @@ stats_t memc_stats(memc_t mem) {
     stat_unlock(mem->keys);
     return st;
 }
+
