@@ -391,9 +391,6 @@ void binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
         
     }
     /*En teoria aca ya tengo la key completa y el dato, en caso que haya sido un put*/
-    //printf("Key: %s\n", CAST_DATA_PTR_BINARY->key);
-    //if(CAST_DATA_PTR_BINARY->dato != NULL)
-    //    printf("Dato: %s\n", CAST_DATA_PTR_BINARY->dato);
     
     mng = manage_client_binary(e_m_struct, evlist);
     
@@ -421,6 +418,7 @@ void restart_binary(struct epoll_event* evlist){
     return;
 
 }
+
 void length_binary(unsigned char* commands, int* length){
 
     for (int i = 0; i < 4; i++){
@@ -450,8 +448,8 @@ int manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_eve
     
     struct data_ptr_binary* ptr_bin;
     ptr_bin = CAST_DATA_PTR_BINARY;
-    /*Primero debo ver que comando me mandó, está en command[0]*/
 
+    /*Checkeo si es PUT*/
     if ((int)ptr_bin->commands[0] == 11){
         command = 0;
         res = memc_put(e_m_struct->mem, 
@@ -470,6 +468,7 @@ int manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_eve
             
         return 0;
     }
+    /*Checkeo si es GET*/
     if ((int)ptr_bin->commands[0] == 13){
         command = 1;
         res = memc_get(e_m_struct->mem,
@@ -513,6 +512,8 @@ int manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_eve
         }
         return 0;
     }
+
+    /*Checkeo si es DEL*/
     if ((int)ptr_bin->commands[0] == 12){
         command = 2;
         res = memc_del(e_m_struct->mem,
@@ -538,6 +539,7 @@ int manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_eve
         }
         return 0;
     }
+    /*Checkeo si es STATS*/
     if ((int)ptr_bin->commands[0] == 21){
         command = 3;
         stats = memc_stats(e_m_struct->mem);
@@ -568,6 +570,7 @@ int manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_eve
         }
 
     }
+    /*Comando erróneo*/
     if (command == -1){
 
         snd = writen(ptr->fd, &einval, 1);
@@ -593,7 +596,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     struct data_ptr* ptr;
     ptr = CAST_DATA_PTR;
     
-    char err[8] = "EINVAL\n";
+    char err[6] = "EBIG\n";
     ssize_t fst_read = 0, err_read = 0;
     int valid = 0; /*Bandera para indicar si el pedido es válido (<= 2048 caracteres)*/
     int cant_commands = N_COMMANDS;
@@ -631,7 +634,8 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                     cant_commands *= 2;
                     ptr->delimit_pos = realloc(ptr->delimit_pos, cant_commands * 4);
                 }
-                ptr->delimit_pos[ptr->actual_pos_arr] = i + 1; /*Guardo la pos de los \n , como empieza del 0 le sumo 1 para que el recv tambien lo consuma*/
+                /*Guardo n° de byte del \n*/
+                ptr->delimit_pos[ptr->actual_pos_arr] = i + 1; 
                 ptr->actual_pos_arr += 1;
             }
         }
@@ -716,6 +720,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     int read_comm;
     int cant_comm;
     char** token_commands; /*Liberar esto*/
+    char einval[8] = "EINVAL\n";
     
     if (ptr->actual_pos_arr > 0)
         d = ptr->delimit_pos[ptr->actual_pos_arr - 1];
@@ -758,7 +763,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
         free(token_commands);
     }
    else{
-        snd = writen(ptr->fd, &err, strlen(err));
+        snd = writen(ptr->fd, &einval, strlen(einval));
         perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
