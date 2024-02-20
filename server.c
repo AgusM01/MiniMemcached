@@ -610,7 +610,6 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 quit_epoll(e_m_struct, evlist);
                 return;
             }
-            assert(0 != 0);
             snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
             perror("error_send");
             if (snd != 0){
@@ -655,7 +654,6 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             if (CAST_DATA_PTR->readed < MAX_CHAR)
                 CAST_DATA_PTR->command[CAST_DATA_PTR->readed] = '\0';
             else{
-                puts("22222ESTOY EN EL EINVAKL CAPOOOOO");
                 snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
                 perror("error_send");
                 if (snd != 0){
@@ -687,7 +685,6 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     
     s = s - d;
     if (CAST_DATA_PTR->missing){ //Lo tengo que unir
-        puts("Entra missing");
         rec = recv(CAST_DATA_PTR->fd, CAST_DATA_PTR->command + CAST_DATA_PTR->readed, s, MSG_WAITALL);
         perror("error_recv");
         if (rec <= 0){
@@ -719,7 +716,8 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
 
     if (token_commands != NULL){
         manage_client(e_m_struct, evlist, token_commands, cant_comm);
-        free(token_commands[0]);
+        if (!CAST_DATA_PTR->missing)
+            free(token_commands[0]);
         free(token_commands);
     }
    else{
