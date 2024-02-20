@@ -84,19 +84,23 @@ void epoll_add(int sockfd, int epollfd, int mode){
     /*EPOLLRDHUP: Se activa cuando un cliente corta la conexión*/
     struct epoll_event ev;
     struct data_ptr* d_ptr = malloc(sizeof(struct data_ptr)); //Liberar esto al final.
+    assert(d_ptr != NULL);
     d_ptr->fd = sockfd;
     d_ptr->text_or_binary = mode;
     if (mode == 0){
         d_ptr->cant_comm_ptr = 0;
         d_ptr->actual_pos_arr = 0;
         d_ptr->delimit_pos = malloc(4*N_COMMANDS); /*Liberar esto*/
+        assert(d_ptr->delimit_pos != NULL);
         d_ptr->binary = NULL;
         d_ptr->command = malloc(MAX_CHAR + 1);
+        assert(d_ptr->command != NULL);
         d_ptr->missing = 0;
         d_ptr->readed = 0;
     }
     if (mode == 1){
         struct data_ptr_binary* binary = malloc(sizeof(struct data_ptr_binary));
+        assert(binary != NULL);
         d_ptr->binary = binary;
         d_ptr->binary->binary_to_read_commands = 5;
         d_ptr->binary->length_key = 0;
@@ -107,6 +111,7 @@ void epoll_add(int sockfd, int epollfd, int mode){
         d_ptr->binary->dato = NULL;
         d_ptr->binary->key = NULL;
         d_ptr->binary->commands = malloc(6);
+        assert(d_ptr->binary->commands != NULL);
         d_ptr->delimit_pos = NULL;        
     }
     ev.data.ptr = d_ptr;
@@ -161,22 +166,15 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
 }
 
 void read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
-    printf("164 LENGTH DATO: %d\n", CAST_DATA_PTR_BINARY->length_dato);
+
     int resp = 0;
     int tot_read = 0;
     int pos = 0;
 
     pos = 5 - CAST_DATA_PTR_BINARY->binary_to_read_commands;
-    if (CAST_DATA_PTR_BINARY->key == NULL)
-    printf("key: binary_to_read_commands: %d\n", CAST_DATA_PTR_BINARY->binary_to_read_commands);
-    else
-    printf("dato: binary_to_read_commands: %d\n", CAST_DATA_PTR_BINARY->binary_to_read_commands);
 
-    printf("pos: %d\n", pos);
-    printf("recibo de: %d\n", CAST_DATA_PTR->fd);
     resp = recv(CAST_DATA_PTR->fd, (CAST_DATA_PTR_BINARY->commands + pos), CAST_DATA_PTR_BINARY->binary_to_read_commands, 0);
     perror("error_recv_read_length");
-    printf("resp: %d\n", resp);
     if  (resp == 0 || 
         (resp == -1 && 
         (errno != EWOULDBLOCK 
@@ -200,23 +198,18 @@ void read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
         return;
     }
     if (tot_read == 0 && CAST_DATA_PTR_BINARY->key == NULL){
-        puts("Calculo key");
         CAST_DATA_PTR_BINARY->length_key = ntohl(*(int*)(CAST_DATA_PTR_BINARY->commands + 1));
         //length_binary(CAST_DATA_PTR_BINARY->commands + 1, &CAST_DATA_PTR_BINARY->length_key);
         CAST_DATA_PTR_BINARY->key = malloc(CAST_DATA_PTR_BINARY->length_key + 1);
+        assert(CAST_DATA_PTR_BINARY->key != NULL);
         CAST_DATA_PTR_BINARY->to_consumed = CAST_DATA_PTR_BINARY->length_key;
         CAST_DATA_PTR_BINARY->comandos_leidos = 0;
         return;
     }
     if (tot_read == 0 && CAST_DATA_PTR_BINARY->dato == NULL){
-        printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[0]);
-        printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[1]);
-        printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[2]);
-        printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[3]);
-        printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[4]);
         CAST_DATA_PTR_BINARY->length_dato = ntohl(*(int*)(CAST_DATA_PTR_BINARY->commands + 1));
-        //length_binary(CAST_DATA_PTR_BINARY->commands + 1, &CAST_DATA_PTR_BINARY->length_dato);
         CAST_DATA_PTR_BINARY->dato = malloc(CAST_DATA_PTR_BINARY->length_dato + 1);
+        assert(CAST_DATA_PTR_BINARY->dato != NULL);
         CAST_DATA_PTR_BINARY->to_consumed = CAST_DATA_PTR_BINARY->length_dato;
         CAST_DATA_PTR_BINARY->comandos_leidos = 0;
 
@@ -330,11 +323,11 @@ void binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
     if(CAST_DATA_PTR_BINARY->key == NULL)
         read_length(e_m_struct, evlist);
 
-    printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[0]);
-    printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[1]);
-    printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[2]);
-    printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[3]);
-    printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[4]);
+    //printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[0]);
+    //printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[1]);
+    //printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[2]);
+    //printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[3]);
+    //printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[4]);
 
     /*Si la clave es NULL, significa que todavia no terminó de leer las longitudes, lo meto al epoll y espero a que mande mas longitudes.*/
     if (CAST_DATA_PTR_BINARY->key == NULL){
@@ -355,7 +348,6 @@ void binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
 
     /*Si es un put tengo que hacer otra lectura*/
     if ((int)CAST_DATA_PTR_BINARY->commands[0] == 11){
-        printf("comandos leidos: %d\n", CAST_DATA_PTR_BINARY->comandos_leidos);
         CAST_DATA_PTR_BINARY->binary_to_read_commands = 4 - CAST_DATA_PTR_BINARY->comandos_leidos;
         CAST_DATA_PTR_BINARY->data_or_key = 1;
 
@@ -420,7 +412,6 @@ void manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_ev
     /*Primero debo ver que comando me mandó, está en command[0]*/
 
     if ((int)CAST_DATA_PTR_BINARY->commands[0] == 11){
-        printf("length dato: %d\n", CAST_DATA_PTR_BINARY->length_dato);
         command = 0;
         res = memc_put(e_m_struct->mem, 
                         CAST_DATA_PTR_BINARY->key,
@@ -449,13 +440,11 @@ void manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_ev
                         CAST_DATA_PTR_BINARY->length_key,
                         (void**)&buf,
                         CAST_DATA_PTR->text_or_binary);
-        printf("res: obtenido del memc_get %d\n", res);
         if (!res){
 
             snd = writen(CAST_DATA_PTR->fd, &enotfound, 1);
             perror("error_send");
             if (snd != 0){
-                puts("QUE HAGO ACA 0");
                 quit_epoll(e_m_struct, evlist);
                 return;
             }
@@ -622,7 +611,6 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 return;
             }
             assert(0 != 0);
-            puts("33333ESTOY EN EL EINVAKL CAPOOOOO");
             snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
             perror("error_send");
             if (snd != 0){
@@ -644,7 +632,6 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                     return;
                 }
                 
-                puts("11111ESTOY EN EL EINVAKL CAPOOOOO");
                 snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
                 perror("error_send");
                 if (snd != 0){
@@ -715,6 +702,7 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     }
     else{
         char* comm = malloc(s + 1);
+        assert(comm != NULL);
 
         read_comm = recv(CAST_DATA_PTR->fd, comm, s, MSG_WAITALL);
         perror("error_recv");
@@ -735,7 +723,6 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
         free(token_commands);
     }
    else{
-        puts("3.55555 EINVAAAAAAAAAAAAAAAAAAAAAAAAAAAAL");
         snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
         perror("error_send");
         if (snd != 0){
@@ -812,9 +799,8 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         || ((command == 3) && (cant_comm != 1)))
         {
         
-        puts("33333ESTOY EN EL EINVAKL CAPOOOOO");
-        for (int i = 0; i <  cant_comm; i++)
-            printf("token_command[%d]: %s\n", i, token_comands[i]);
+        //for (int i = 0; i <  cant_comm; i++)
+        //    printf("token_command[%d]: %s\n", i, token_comands[i]);
 
         snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
         perror("error_send");
@@ -834,7 +820,6 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         //printf("len_tok_1: %d\n", len_tok_1);
 
         if (len_tok_1 == -1 || len_tok_2 == -2){
-            puts("444444ESTOY EN EL EINVAKL CAPOOOOO");
             snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
             if (snd != 0)
                 quit_epoll(e_m_struct, evlist);
@@ -862,7 +847,6 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         int len_tok_1 = my_length(token_comands[1]);
         
         if (len_tok_1 == -1){
-            puts("5555ESTOY EN EL EINVAKL CAPOOOOO");
             snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
             if (snd != 0)
                 quit_epoll(e_m_struct, evlist);
@@ -877,7 +861,6 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         if (res == 0)
             snd = writen(CAST_DATA_PTR->fd, ok, strlen(ok));
         else{
-            puts("6666666ESTOY EN EL EINVAKL CAPOOOOO");
             snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
         }
 
@@ -892,7 +875,6 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         int len_tok_1 = my_length(token_comands[1]);
         
         if (len_tok_1 == -1){
-            puts("666666ESTOY EN EL EINVAKL CAPOOOOO");
             snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
             if (snd != 0)
                 quit_epoll(e_m_struct, evlist);
@@ -950,7 +932,7 @@ void* epoll_monitor(void* args){
     /*Inicializa la lista de los fd listos*/
     
     struct epoll_event* evlist = malloc(sizeof(struct epoll_event) * MAX_EVENTS); //Liberar esto al final
-    assert(evlist != 0);
+    assert(evlist != NULL);
     //e_m_struct->evlist = evlist;
     int a = 0;
     //printf("Entro al while soy %ld\n", pthread_self());
