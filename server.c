@@ -11,11 +11,11 @@
 #include <string.h>
 #include <errno.h>
 #include <math.h>
+#include <sys/signal.h>
 #include "server.h"
 #include "text_parser.h"
 #include "structures/memc.h"
 #include "structures/utils.h"
-#include <sys/signal.h>
 
 #define PORT_NUM_TEXT   8888
 #define PORT_NUM_BIN    8889
@@ -35,6 +35,7 @@
 //
 //}
 /*Argumentos para la funcion epoll_monitor*/
+
 struct args_epoll_monitor {
     int epollfd;
     int sockfd_text;
@@ -129,6 +130,8 @@ void epoll_add(int sockfd, int epollfd, int mode){
 /*Conecta a un nuevo cliente.*/
 void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, int mode){
 
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
     
     int client_sockfd;
     struct epoll_event ev;
@@ -148,7 +151,7 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     
     if (client_sockfd == -1){
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)){            
-            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
+            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, ptr->fd, &ev);
             return;
         }
         else{
@@ -157,8 +160,8 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
         } 
     }
 
-    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
-    epoll_add(client_sockfd, e_m_struct->epollfd, CAST_DATA_PTR->text_or_binary);
+    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, ptr->fd, &ev);
+    epoll_add(client_sockfd, e_m_struct->epollfd, ptr->text_or_binary);
 
     
     
@@ -171,9 +174,16 @@ void read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     int tot_read = 0;
     int pos = 0;
 
-    pos = 5 - CAST_DATA_PTR_BINARY->binary_to_read_commands;
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
+    
+    struct data_ptr_binary* ptr_bin;
+    ptr_bin = CAST_DATA_PTR_BINARY;
 
-    resp = recv(CAST_DATA_PTR->fd, (CAST_DATA_PTR_BINARY->commands + pos), CAST_DATA_PTR_BINARY->binary_to_read_commands, 0);
+
+    pos = 5 - ptr_bin->binary_to_read_commands;
+
+    resp = recv(ptr->fd, (ptr_bin->commands + pos), ptr_bin->binary_to_read_commands, 0);
     perror("error_recv_read_length");
     if  (resp == 0 || 
         (resp == -1 && 
@@ -184,34 +194,36 @@ void read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     }
     
     if (resp != -1)
-        tot_read = CAST_DATA_PTR_BINARY->binary_to_read_commands - resp;
+        tot_read = ptr_bin->binary_to_read_commands - resp;
     else
-        tot_read = CAST_DATA_PTR_BINARY->binary_to_read_commands;
+        tot_read = ptr_bin->binary_to_read_commands;
     //printf("tot_read: %d\n", tot_read);
     
     if (tot_read > 0){ /*Todavia no llegó toda la longitud de la clave.*/
-        CAST_DATA_PTR_BINARY->binary_to_read_commands = tot_read;
+        ptr_bin->binary_to_read_commands = tot_read;
 
         if (resp != -1)
-            CAST_DATA_PTR_BINARY->comandos_leidos = resp;
+            ptr_bin->comandos_leidos = resp;
         
         return;
     }
-    if (tot_read == 0 && CAST_DATA_PTR_BINARY->key == NULL){
-        CAST_DATA_PTR_BINARY->length_key = ntohl(*(int*)(CAST_DATA_PTR_BINARY->commands + 1));
+
+    if (tot_read == 0 && ptr_bin->key == NULL){
+        ptr_bin->length_key = ntohl(*(int*)(ptr_bin->commands + 1));
         //length_binary(CAST_DATA_PTR_BINARY->commands + 1, &CAST_DATA_PTR_BINARY->length_key);
-        CAST_DATA_PTR_BINARY->key = malloc(CAST_DATA_PTR_BINARY->length_key + 1);
-        assert(CAST_DATA_PTR_BINARY->key != NULL);
-        CAST_DATA_PTR_BINARY->to_consumed = CAST_DATA_PTR_BINARY->length_key;
-        CAST_DATA_PTR_BINARY->comandos_leidos = 0;
+        ptr_bin->key = malloc(ptr_bin->length_key + 1);
+        assert(ptr_bin->key != NULL);
+        ptr_bin->to_consumed = ptr_bin->length_key;
+        ptr_bin->comandos_leidos = 0;
         return;
     }
-    if (tot_read == 0 && CAST_DATA_PTR_BINARY->dato == NULL){
-        CAST_DATA_PTR_BINARY->length_dato = ntohl(*(int*)(CAST_DATA_PTR_BINARY->commands + 1));
-        CAST_DATA_PTR_BINARY->dato = malloc(CAST_DATA_PTR_BINARY->length_dato + 1);
-        assert(CAST_DATA_PTR_BINARY->dato != NULL);
-        CAST_DATA_PTR_BINARY->to_consumed = CAST_DATA_PTR_BINARY->length_dato;
-        CAST_DATA_PTR_BINARY->comandos_leidos = 0;
+
+    if (tot_read == 0 && ptr_bin->dato == NULL){
+        ptr_bin->length_dato = ntohl(*(int*)(ptr_bin->commands + 1));
+        ptr_bin->dato = malloc(ptr_bin->length_dato + 1);
+        assert(ptr_bin->dato != NULL);
+        ptr_bin->to_consumed = ptr_bin->length_dato;
+        ptr_bin->comandos_leidos = 0;
 
         return;
     }
@@ -248,20 +260,26 @@ void read_content(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     int resp = 0;
     int tot_read = 0;
     void* content;
-    puts("holanda");
-    printf("Data or Ky : %d\n", CAST_DATA_PTR_BINARY->data_or_key);
+
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
+    
+    struct data_ptr_binary* ptr_bin;
+    ptr_bin = CAST_DATA_PTR_BINARY;
+
+    printf("Data or Ky : %d\n", ptr_bin->data_or_key);
     //printf("to_consume: %d\n", CAST_DATA_PTR_BINARY->to_consumed);
     if(!data_or_key){
-        content = CAST_DATA_PTR_BINARY->key;
-        pos = CAST_DATA_PTR_BINARY->length_key - CAST_DATA_PTR_BINARY->to_consumed;
+        content = ptr_bin->key;
+        pos = ptr_bin->length_key - ptr_bin->to_consumed;
     }
     else{
-        printf("length dato: %d\n", CAST_DATA_PTR_BINARY->length_dato);
-        content = CAST_DATA_PTR_BINARY->dato;
-        pos = CAST_DATA_PTR_BINARY->length_dato - CAST_DATA_PTR_BINARY->to_consumed;
+        printf("length dato: %d\n", ptr_bin->length_dato);
+        content = ptr_bin->dato;
+        pos = ptr_bin->length_dato - ptr_bin->to_consumed;
     }
     
-    resp = recv(CAST_DATA_PTR->fd, content + pos, CAST_DATA_PTR_BINARY->to_consumed, 0);
+    resp = recv(ptr->fd, content + pos, ptr_bin->to_consumed, 0);
     perror("error_recv");
     if  (resp == 0 || 
         (resp == -1 && 
@@ -274,16 +292,16 @@ void read_content(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     }
     
     if (resp != -1)
-        tot_read = CAST_DATA_PTR_BINARY->to_consumed - resp;
+        tot_read = ptr_bin->to_consumed - resp;
     else 
-        tot_read = CAST_DATA_PTR_BINARY->to_consumed;
+        tot_read = ptr_bin->to_consumed;
     printf("tots_read: %d\n", tot_read);
     if (tot_read > 0){ 
-        CAST_DATA_PTR_BINARY->to_consumed = tot_read;
+        ptr_bin->to_consumed = tot_read;
         return;
     }
     if (tot_read == 0){
-        CAST_DATA_PTR_BINARY->to_consumed = 0; /*Ya terminó de consumir todo*/
+        ptr_bin->to_consumed = 0; /*Ya terminó de consumir todo*/
     }
     return;
 
@@ -292,12 +310,18 @@ void read_content(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
 /*Consume el binario del fd de un cliente.*/
 void binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     
-    int resp = 0;
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
     
+    struct data_ptr_binary* ptr_bin;
+    ptr_bin = CAST_DATA_PTR_BINARY;
+
+    int resp = 0;
+    int mng = -1; 
     /*En la primera vez consume el primer comando (PUT/GET/DEL/...)*/
-    if (CAST_DATA_PTR_BINARY->binary_to_read_commands == 5){
+    if (ptr_bin->binary_to_read_commands == 5){
         //printf("Leo de fd: %d\n", CAST_DATA_PTR->fd);
-        resp = recv(CAST_DATA_PTR->fd, CAST_DATA_PTR_BINARY->commands, 1, 0); 
+        resp = recv(ptr->fd, ptr_bin->commands, 1, 0); 
 
         if  (resp == 0 || 
         (resp == -1 && 
@@ -307,20 +331,20 @@ void binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
         return;
         }
 
-        CAST_DATA_PTR_BINARY->binary_to_read_commands -= 1; /*Comandos a leer, ya leí el primero*/
+        ptr_bin->binary_to_read_commands -= 1; /*Comandos a leer, ya leí el primero*/
 
     }
     /*Si no es ningun comando conocido o que requiera leer valores (STATS) directamente lo maneja*/
-    if ((CAST_DATA_PTR_BINARY->commands[0] != 11)
-        && (CAST_DATA_PTR_BINARY->commands[0] != 12)
-        && (CAST_DATA_PTR_BINARY->commands[0] != 13)){
+    if ((ptr_bin->commands[0] != 11)
+        && (ptr_bin->commands[0] != 12)
+        && (ptr_bin->commands[0] != 13)){
             manage_client_binary(e_m_struct, evlist);
             return;
         }
 
     /*Llama a la funcion que lee las longitudes y calcula cuando mide la clave.*/
-    printf("to read commands after primer comando: %d\n", CAST_DATA_PTR_BINARY->binary_to_read_commands);
-    if(CAST_DATA_PTR_BINARY->key == NULL)
+    printf("to read commands after primer comando: %d\n", ptr_bin->binary_to_read_commands);
+    if(ptr_bin->key == NULL)
         read_length(e_m_struct, evlist);
 
     //printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[0]);
@@ -330,62 +354,73 @@ void binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* e
     //printf("Command = %d\n", (int)CAST_DATA_PTR_BINARY->commands[4]);
 
     /*Si la clave es NULL, significa que todavia no terminó de leer las longitudes, lo meto al epoll y espero a que mande mas longitudes.*/
-    if (CAST_DATA_PTR_BINARY->key == NULL){
+    if (ptr_bin->key == NULL){
         printf("vuelve a epoll, me falta clave\n");
-        printf("to read commands: %d\n", CAST_DATA_PTR_BINARY->binary_to_read_commands);
+        printf("to read commands: %d\n", ptr_bin->binary_to_read_commands);
         return;
     }
 
     /*Si el dato es NULL deberia leer la clave*/
-    if (CAST_DATA_PTR_BINARY->data_or_key == 0)
-        read_content(e_m_struct, evlist, CAST_DATA_PTR_BINARY->data_or_key);
+    if (ptr_bin->data_or_key == 0)
+        read_content(e_m_struct, evlist, ptr_bin->data_or_key);
 
     /*Todavía no terminó de leer el contenido*/
-    if (CAST_DATA_PTR_BINARY->to_consumed != 0 && CAST_DATA_PTR_BINARY->data_or_key == 0){
+    if (ptr_bin->to_consumed != 0 && ptr_bin->data_or_key == 0){
         printf("me falta contenido\n");
         return;
     }
 
     /*Si es un put tengo que hacer otra lectura*/
-    if ((int)CAST_DATA_PTR_BINARY->commands[0] == 11){
-        CAST_DATA_PTR_BINARY->binary_to_read_commands = 4 - CAST_DATA_PTR_BINARY->comandos_leidos;
-        CAST_DATA_PTR_BINARY->data_or_key = 1;
+    if ((int)ptr_bin->commands[0] == 11){
+        ptr_bin->binary_to_read_commands = 4 - ptr_bin->comandos_leidos;
+        ptr_bin->data_or_key = 1;
 
-        if (CAST_DATA_PTR_BINARY->dato == NULL)
+        if (ptr_bin->dato == NULL)
             read_length(e_m_struct, evlist);
         
-        if (CAST_DATA_PTR_BINARY->dato == NULL){
+        if (ptr_bin->dato == NULL){
             return;
         }
 
-        read_content(e_m_struct, evlist, CAST_DATA_PTR_BINARY->data_or_key);
+        read_content(e_m_struct, evlist, ptr_bin->data_or_key);
 
         /*Todavía no terminó de leer el contenido*/
-        if (CAST_DATA_PTR_BINARY->to_consumed != 0){
+        if (ptr_bin->to_consumed != 0){
             return;
         }
         
     }
     /*En teoria aca ya tengo la key completa y el dato, en caso que haya sido un put*/
-    printf("Key: %s\n", CAST_DATA_PTR_BINARY->key);
-    if(CAST_DATA_PTR_BINARY->dato != NULL)
-        printf("Dato: %s\n", CAST_DATA_PTR_BINARY->dato);
+    //printf("Key: %s\n", CAST_DATA_PTR_BINARY->key);
+    //if(CAST_DATA_PTR_BINARY->dato != NULL)
+    //    printf("Dato: %s\n", CAST_DATA_PTR_BINARY->dato);
     
-    manage_client_binary(e_m_struct, evlist);
+    mng = manage_client_binary(e_m_struct, evlist);
     
-    free(CAST_DATA_PTR_BINARY->key);
-    free(CAST_DATA_PTR_BINARY->dato);
-    CAST_DATA_PTR_BINARY->key = NULL;
-    CAST_DATA_PTR_BINARY->dato = NULL;
-    CAST_DATA_PTR_BINARY->data_or_key = 0;
-    CAST_DATA_PTR_BINARY->binary_to_read_commands = 5;
-    CAST_DATA_PTR_BINARY->comandos_leidos = 0;
-    CAST_DATA_PTR_BINARY->length_dato = 0;
-    CAST_DATA_PTR_BINARY->length_key = 0;
-    CAST_DATA_PTR_BINARY->to_consumed = 0;
+    if(mng == 0)
+        restart_binary(evlist);
+
     return;
 }
- 
+
+void restart_binary(struct epoll_event* evlist){
+    
+    struct data_ptr_binary* ptr_bin;
+    ptr_bin = CAST_DATA_PTR_BINARY;
+
+    free(ptr_bin->key);
+    free(ptr_bin->dato);
+    ptr_bin->key = NULL;
+    ptr_bin->dato = NULL;
+    ptr_bin->data_or_key = 0;
+    ptr_bin->binary_to_read_commands = 5;
+    ptr_bin->comandos_leidos = 0;
+    ptr_bin->length_dato = 0;
+    ptr_bin->length_key = 0;
+    ptr_bin->to_consumed = 0;
+    return;
+
+}
 void length_binary(unsigned char* commands, int* length){
 
     for (int i = 0; i < 4; i++){
@@ -396,7 +431,7 @@ void length_binary(unsigned char* commands, int* length){
     return;    
 }
 
-void manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
+int manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
     char ok = 101; 
     char einval = 111;
@@ -409,143 +444,141 @@ void manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_ev
     stats_t stats;
     char stat_buf[150];
     int len_stat_buf = 0;
+
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
+    
+    struct data_ptr_binary* ptr_bin;
+    ptr_bin = CAST_DATA_PTR_BINARY;
     /*Primero debo ver que comando me mandó, está en command[0]*/
 
-    if ((int)CAST_DATA_PTR_BINARY->commands[0] == 11){
+    if ((int)ptr_bin->commands[0] == 11){
         command = 0;
         res = memc_put(e_m_struct->mem, 
-                        CAST_DATA_PTR_BINARY->key,
-                        CAST_DATA_PTR_BINARY->dato,
-                        CAST_DATA_PTR_BINARY->length_key,
-                        CAST_DATA_PTR_BINARY->length_dato,
-                        CAST_DATA_PTR->text_or_binary);
+                        ptr_bin->key,
+                        ptr_bin->dato,
+                        ptr_bin->length_key,
+                        ptr_bin->length_dato,
+                        ptr->text_or_binary);
         
-        snd = writen(CAST_DATA_PTR->fd, &ok, 1);
+        snd = writen(ptr->fd, &ok, 1);
         perror("snd_put_binary");
-        if (snd != 0)
+        if (snd != 0){
             quit_epoll(e_m_struct, evlist);
+            return -1;
+        }
             
-        //snd = send(CAST_DATA_PTR->fd, &ok, 1, 0);
-        //perror("error_send");
-        //if (snd == 0 || snd == -1){
-        //    quit_epoll(e_m_struct, evlist);
-        //    return;
-        //}
-        return;
+        return 0;
     }
-    if ((int)CAST_DATA_PTR_BINARY->commands[0] == 13){
+    if ((int)ptr_bin->commands[0] == 13){
         command = 1;
         res = memc_get(e_m_struct->mem,
-                        CAST_DATA_PTR_BINARY->key,
-                        CAST_DATA_PTR_BINARY->length_key,
+                        ptr_bin->key,
+                        ptr_bin->length_key,
                         (void**)&buf,
-                        CAST_DATA_PTR->text_or_binary);
+                        ptr->text_or_binary);
         if (!res){
 
-            snd = writen(CAST_DATA_PTR->fd, &enotfound, 1);
+            snd = writen(ptr->fd, &enotfound, 1);
             perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
-                return;
+                return -1;
             }
         }
         else{
             
             int_to_binary(res, (void*)&len);
             
-            snd = writen(CAST_DATA_PTR->fd, &ok, 1);
+            snd = writen(ptr->fd, &ok, 1);
             if (snd != 0){
-            puts("QUE HAGO ACA 1");
-                
                 quit_epoll(e_m_struct, evlist);
                 free(buf);
-                return;
+                return -1;
             }
 
-            snd = writen(CAST_DATA_PTR->fd, len, 4);
+            snd = writen(ptr->fd, len, 4);
             if (snd != 0){
-            puts("QUE HAGO ACA 2");
-
                 quit_epoll(e_m_struct, evlist);
                 free(buf);
-                return;
+                return -1;
             }
             
-            snd = writen(CAST_DATA_PTR->fd, buf, res);
+            snd = writen(ptr->fd, buf, res);
             if (snd != 0){
-            puts("QUE HAGO ACA 3");
-
                 quit_epoll(e_m_struct, evlist);
                 free(buf);
-                return;
+                return -1;
             }
         }
-        return;
+        return 0;
     }
-    if ((int)CAST_DATA_PTR_BINARY->commands[0] == 12){
+    if ((int)ptr_bin->commands[0] == 12){
         command = 2;
         res = memc_del(e_m_struct->mem,
-                        CAST_DATA_PTR_BINARY->key,
-                        CAST_DATA_PTR_BINARY->length_key,
-                        CAST_DATA_PTR->text_or_binary);
+                        ptr_bin->key,
+                        ptr_bin->length_key,
+                        ptr->text_or_binary);
 
         if (res == -1){
-            snd = writen(CAST_DATA_PTR->fd, &enotfound, 1);
+            snd = writen(ptr->fd, &enotfound, 1);
             perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
-                return;
+                return -1;
             }
         }
         else{
-            snd = writen(CAST_DATA_PTR->fd, &ok, 1);
+            snd = writen(ptr->fd, &ok, 1);
             perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
-                return;
+                return -1;
             }
         }
-        return;
+        return 0;
     }
-    if ((int)CAST_DATA_PTR_BINARY->commands[0] == 21){
+    if ((int)ptr_bin->commands[0] == 21){
         command = 3;
         stats = memc_stats(e_m_struct->mem);
-        len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
+        len_stat_buf = sprintf(stat_buf,"PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
+
         int_to_binary(len_stat_buf, (void*)&len);
         
-        snd = writen(CAST_DATA_PTR->fd, &ok, 1);
+        snd = writen(ptr->fd, &ok, 1);
         perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
-            return;
+            return -1;
         }
         
-        snd = writen(CAST_DATA_PTR->fd, &len, 4);
+        snd = writen(ptr->fd, &len, 4);
         perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
-            return;
+            return -1;
         }
         
         
-        snd = writen(CAST_DATA_PTR->fd, &stat_buf, strlen(stat_buf));
+        snd = writen(ptr->fd, &stat_buf, strlen(stat_buf));
         perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
-            return;
+            return -1;
         }
 
     }
     if (command == -1){
 
-        snd = writen(CAST_DATA_PTR->fd, &einval, 1);
+        snd = writen(ptr->fd, &einval, 1);
         perror("error_send");
-        if (snd != 0)
+        if (snd != 0){
             quit_epoll(e_m_struct, evlist);
+            return -1;
+        }
 
     }
-    return;
-
+    return 0;
 }
 
 /*Consume el texto del fd de un cliente.*/
@@ -556,21 +589,24 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
 
     /*Buffer temporal para procesar el comando.*/
     char temp[MAX_CHAR + 1];
-    //char* buf = malloc(MAX_CHAR);
-    //char* resp = malloc(MAX_CHAR);
+
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
+    
     char err[8] = "EINVAL\n";
     ssize_t fst_read = 0, err_read = 0;
     int valid = 0; /*Bandera para indicar si el pedido es válido (<= 2048 caracteres)*/
     int cant_commands = N_COMMANDS;
     int snd = 0;
     int rec = 0;
-    printf("Leo de fd: %d\n", CAST_DATA_PTR->fd); 
+
+    printf("Leo de fd: %d\n", ptr->fd); 
 
     /*Checkeamos si no hay lugares de \n ya leidos, de esta manera si es que hay el hilo simplemente puede leer lo que necesita*/
-    if (CAST_DATA_PTR->cant_comm_ptr == 0){
+    if (ptr->cant_comm_ptr == 0){
 
         /*Primer recv para ubicar la posicion del \n*/
-        fst_read = recv(CAST_DATA_PTR->fd, temp, MAX_CHAR, MSG_PEEK); 
+        fst_read = recv(ptr->fd, temp, MAX_CHAR, MSG_PEEK); 
         perror("error_read");
     
         if (fst_read <= 0){
@@ -584,64 +620,65 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             
         /*Recorro lo leido para guardar los \n*/
         /*Si entró aca significa que no hay \n guardados, por lo que reiniciamos la pos del array.*/
-        CAST_DATA_PTR->actual_pos_arr = 0;
+        ptr->actual_pos_arr = 0;
         for (int i = 0; i < fst_read; i++){
             if(temp[i] == '\n'){
                 printf("Lo encontré i= %d\n", i);
                 valid = 1;
-                CAST_DATA_PTR->cant_comm_ptr += 1;
+                ptr->cant_comm_ptr += 1;
                 /*Posiblemente nunca deba ejecutarse pero por las dudas.*/
-                if(CAST_DATA_PTR->cant_comm_ptr == cant_commands){ 
+                if(ptr->cant_comm_ptr == cant_commands){ 
                     cant_commands *= 2;
-                    CAST_DATA_PTR->delimit_pos = realloc(CAST_DATA_PTR->delimit_pos, cant_commands * 4);
+                    ptr->delimit_pos = realloc(ptr->delimit_pos, cant_commands * 4);
                 }
-                CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr] = i + 1; /*Guardo la pos de los \n , como empieza del 0 le sumo 1 para que el recv tambien lo consuma*/
-                CAST_DATA_PTR->actual_pos_arr += 1;
+                ptr->delimit_pos[ptr->actual_pos_arr] = i + 1; /*Guardo la pos de los \n , como empieza del 0 le sumo 1 para que el recv tambien lo consuma*/
+                ptr->actual_pos_arr += 1;
             }
         }
         /*Reiniciamos la posicion del array*/
-        CAST_DATA_PTR->actual_pos_arr = 0; 
+        ptr->actual_pos_arr = 0; 
         
-        if ((!valid && fst_read == MAX_CHAR) || CAST_DATA_PTR->readed >= 2048){ /*No hay ningun \n en 2048 bytes. Debo leer más para encontrarlo y descartar ese comando*/
+        if ((!valid && fst_read == MAX_CHAR) || 
+            ptr->readed >= 2048){ /*No hay ningun \n en 2048 bytes. Debo leer más para encontrarlo y descartar ese comando*/
             puts("Lei error");
             
-            err_read = recv(CAST_DATA_PTR->fd, temp, fst_read, MSG_WAITALL);
+            err_read = recv(ptr->fd, temp, fst_read, MSG_WAITALL);
             if (err_read <= 0){
                 quit_epoll(e_m_struct, evlist);
                 return;
             }
-            snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
+            snd = writen(ptr->fd, &err, strlen(err));
             perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 return;
             }
 
-            CAST_DATA_PTR->readed = 0;
+            ptr->readed = 0;
             return;
         }
 
         if(!valid){ /*No leyó ningun \n, debo esperar a que llegue el resto del pedido.*/
 
-            if (CAST_DATA_PTR->readed + fst_read >= MAX_CHAR){
+            if (ptr->readed + fst_read >= MAX_CHAR){
                 char err_buf[fst_read];
-                fst_read = recv(CAST_DATA_PTR->fd, err_buf, fst_read, MSG_WAITALL); 
+                fst_read = recv(ptr->fd, err_buf, fst_read, MSG_WAITALL); 
                 if (fst_read <= 0){
                     quit_epoll(e_m_struct, evlist);
                     return;
                 }
                 
-                snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
+                snd = writen(ptr->fd, &err, strlen(err));
                 perror("error_send");
                 if (snd != 0){
                     quit_epoll(e_m_struct, evlist);
                     return;
                 }
                     
-                CAST_DATA_PTR->readed = 0;
+                ptr->readed = 0;
                 return;
             }
-            fst_read = recv(CAST_DATA_PTR->fd, CAST_DATA_PTR->command + CAST_DATA_PTR->readed, fst_read, MSG_WAITALL); /*Lo consumo*/
+            fst_read = recv(ptr->fd, ptr->command + ptr->readed, fst_read, MSG_WAITALL); /*Lo consumo*/
             perror("error_recv");
             if (fst_read <= 0){
                 if(fst_read != -1 || (errno != EWOULDBLOCK && errno != EAGAIN))            
@@ -649,24 +686,24 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
                 return;
             }
 
-            CAST_DATA_PTR->readed += fst_read; /*Si ya pasaron 2048 sin \n lo vuelo*/
+            ptr->readed += fst_read; /*Si ya pasaron 2048 sin \n lo vuelo*/
             
-            if (CAST_DATA_PTR->readed < MAX_CHAR)
-                CAST_DATA_PTR->command[CAST_DATA_PTR->readed] = '\0';
+            if (ptr->readed < MAX_CHAR)
+                ptr->command[ptr->readed] = '\0';
             else{
-                snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
+                snd = writen(ptr->fd, &err, strlen(err));
                 perror("error_send");
                 if (snd != 0){
                     quit_epoll(e_m_struct, evlist);
                     return;
                 }
                 
-                CAST_DATA_PTR->readed = 0;
+                ptr->readed = 0;
                 return;
             }
 
-            CAST_DATA_PTR->missing = 1;
-            printf("Command: %s\n", CAST_DATA_PTR->command);
+            ptr->missing = 1;
+            printf("Command: %s\n", ptr->command);
             return;
         }
     }
@@ -675,17 +712,17 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
     /*Reiniciamos la posicion actual del array*/
     //CAST_DATA_PTR->actual_pos_arr = 0; 
     int d = 0;
-    int s = CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr];
+    int s = ptr->delimit_pos[ptr->actual_pos_arr];
     int read_comm;
     int cant_comm;
     char** token_commands; /*Liberar esto*/
     
-    if (CAST_DATA_PTR->actual_pos_arr > 0)
-        d = CAST_DATA_PTR->delimit_pos[CAST_DATA_PTR->actual_pos_arr - 1];
+    if (ptr->actual_pos_arr > 0)
+        d = ptr->delimit_pos[ptr->actual_pos_arr - 1];
     
     s = s - d;
-    if (CAST_DATA_PTR->missing){ //Lo tengo que unir
-        rec = recv(CAST_DATA_PTR->fd, CAST_DATA_PTR->command + CAST_DATA_PTR->readed, s, MSG_WAITALL);
+    if (ptr->missing){ //Lo tengo que unir
+        rec = recv(ptr->fd, ptr->command + ptr->readed, s, MSG_WAITALL);
         perror("error_recv");
         if (rec <= 0){
             if(rec != -1 || (errno != EWOULDBLOCK && errno != EAGAIN))            
@@ -693,15 +730,15 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
             return;
         }
         
-        printf("command pre token: %s\n", CAST_DATA_PTR->command);
-        CAST_DATA_PTR->command[CAST_DATA_PTR->readed + rec] = '\0';
-        token_commands = text_parser(CAST_DATA_PTR->command, &cant_comm, DELIMITER);
+        printf("command pre token: %s\n", ptr->command);
+        ptr->command[ptr->readed + rec] = '\0';
+        token_commands = text_parser(ptr->command, &cant_comm, DELIMITER);
     }
     else{
         char* comm = malloc(s + 1);
         assert(comm != NULL);
 
-        read_comm = recv(CAST_DATA_PTR->fd, comm, s, MSG_WAITALL);
+        read_comm = recv(ptr->fd, comm, s, MSG_WAITALL);
         perror("error_recv");
         if (read_comm <= 0){
             if(read_comm != -1 || (errno != EWOULDBLOCK && errno != EAGAIN))            
@@ -716,12 +753,12 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
 
     if (token_commands != NULL){
         manage_client(e_m_struct, evlist, token_commands, cant_comm);
-        if (!CAST_DATA_PTR->missing)
+        if (!ptr->missing)
             free(token_commands[0]);
         free(token_commands);
     }
    else{
-        snd = writen(CAST_DATA_PTR->fd, &err, strlen(err));
+        snd = writen(ptr->fd, &err, strlen(err));
         perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
@@ -729,32 +766,38 @@ void text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evl
         }
     }
     
-    CAST_DATA_PTR->actual_pos_arr += 1;
-    CAST_DATA_PTR->cant_comm_ptr -= 1; 
-    CAST_DATA_PTR->missing = 0;
-    CAST_DATA_PTR->readed = 0;
+    ptr->actual_pos_arr += 1;
+    ptr->cant_comm_ptr -= 1; 
+    ptr->missing = 0;
+    ptr->readed = 0;
     return; 
 
 }
 
 void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
-    printf("Lo saque a: %d\n", CAST_DATA_PTR->fd);
-    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, CAST_DATA_PTR->fd, evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
+
+    struct data_ptr_binary* ptr_bin;
+    ptr_bin = CAST_DATA_PTR_BINARY;
+
+    printf("Lo saque a: %d\n", ptr->fd);
+    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, ptr->fd, evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
     
-    if(!CAST_DATA_PTR->text_or_binary){
-        close(CAST_DATA_PTR->fd);
-        free(CAST_DATA_PTR->command);
-        free(CAST_DATA_PTR->delimit_pos);
+    if(!ptr->text_or_binary){
+        close(ptr->fd);
+        free(ptr->command);
+        free(ptr->delimit_pos);
     }
     else{
-        close(CAST_DATA_PTR->fd);
-        free(CAST_DATA_PTR_BINARY->commands);
-        free(CAST_DATA_PTR_BINARY->dato);
-        free(CAST_DATA_PTR_BINARY->key);
-        free(CAST_DATA_PTR_BINARY);
+        close(ptr->fd);
+        free(ptr_bin->commands);
+        free(ptr_bin->dato);
+        free(ptr_bin->key);
+        free(ptr_bin);
     }
-    free(CAST_DATA_PTR);
+    free(ptr);
     return;
 }
 
@@ -776,6 +819,9 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     int res;
     int command = -1;
     int len_stat_buf;
+
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
 
     printf("cant_comm: %d\n", cant_comm);
     if (cant_comm == 0)
@@ -800,7 +846,7 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         //for (int i = 0; i <  cant_comm; i++)
         //    printf("token_command[%d]: %s\n", i, token_comands[i]);
 
-        snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
+        snd = writen(ptr->fd, einval, strlen(einval));
         perror("error_send");
         if (snd != 0)
             quit_epoll(e_m_struct, evlist);
@@ -818,7 +864,7 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         //printf("len_tok_1: %d\n", len_tok_1);
 
         if (len_tok_1 == -1 || len_tok_2 == -2){
-            snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
+            snd = writen(ptr->fd, einval, strlen(einval));
             if (snd != 0)
                 quit_epoll(e_m_struct, evlist);
             return;    
@@ -829,9 +875,9 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
                         token_comands[2], 
                         len_tok_1,
                         len_tok_2,
-                        CAST_DATA_PTR->text_or_binary); /*TEXTO*/
+                        ptr->text_or_binary); /*TEXTO*/
 
-        snd = writen(CAST_DATA_PTR->fd, ok, strlen(ok));
+        snd = writen(ptr->fd, ok, strlen(ok));
         if (snd != 0)
             quit_epoll(e_m_struct, evlist);
         //snd = send(CAST_DATA_PTR->fd, ok, strlen(ok), MSG_NOSIGNAL);
@@ -845,7 +891,7 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         int len_tok_1 = my_length(token_comands[1]);
         
         if (len_tok_1 == -1){
-            snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
+            snd = writen(ptr->fd, einval, strlen(einval));
             if (snd != 0)
                 quit_epoll(e_m_struct, evlist);
             return;    
@@ -854,12 +900,12 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         res = memc_del  (e_m_struct->mem,
                         token_comands[1],
                         len_tok_1,
-                        CAST_DATA_PTR->text_or_binary);
+                        ptr->text_or_binary);
         
         if (res == 0)
-            snd = writen(CAST_DATA_PTR->fd, ok, strlen(ok));
+            snd = writen(ptr->fd, ok, strlen(ok));
         else{
-            snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
+            snd = writen(ptr->fd, einval, strlen(einval));
         }
 
         if (snd != 0){
@@ -873,7 +919,7 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         int len_tok_1 = my_length(token_comands[1]);
         
         if (len_tok_1 == -1){
-            snd = writen(CAST_DATA_PTR->fd, einval, strlen(einval));
+            snd = writen(ptr->fd, einval, strlen(einval));
             if (snd != 0)
                 quit_epoll(e_m_struct, evlist);
             return;    
@@ -884,19 +930,19 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
                         token_comands[1], 
                         len_tok_1, 
                         (void**)&get_value, 
-                        CAST_DATA_PTR->text_or_binary);
+                        ptr->text_or_binary);
 
         if (res == -1)
-            snd = writen(CAST_DATA_PTR->fd, ebinary, strlen(ebinary));
+            snd = writen(ptr->fd, ebinary, strlen(ebinary));
         if (res == 0)
-            snd = writen(CAST_DATA_PTR->fd, enotfound, strlen(enotfound));
+            snd = writen(ptr->fd, enotfound, strlen(enotfound));
         if (res > 0){
             char resp[res + 5];
             sprintf(resp, "OK %s\n", get_value);
             if (strlen(ok_get) <= 2048)
-                snd = writen(CAST_DATA_PTR->fd, resp, strlen(resp));
+                snd = writen(ptr->fd, resp, strlen(resp));
             else    
-                snd = writen(CAST_DATA_PTR->fd, ebig, strlen(ebig));
+                snd = writen(ptr->fd, ebig, strlen(ebig));
         }
 
         perror("error_send");
@@ -912,7 +958,7 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
         stats = memc_stats(e_m_struct->mem);
         len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
         assert(len_stat_buf > 0);
-        snd = writen(CAST_DATA_PTR->fd, stat_buf, len_stat_buf);
+        snd = writen(ptr->fd, stat_buf, len_stat_buf);
         perror("error_send");
         if (snd != 0)
             quit_epoll(e_m_struct, evlist);
@@ -924,6 +970,7 @@ void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
 void* epoll_monitor(void* args){
     
 
+    int a = 0;
     struct args_epoll_monitor* e_m_struct;
     e_m_struct = (struct args_epoll_monitor*) args;
     
@@ -931,8 +978,8 @@ void* epoll_monitor(void* args){
     
     struct epoll_event* evlist = malloc(sizeof(struct epoll_event) * MAX_EVENTS); //Liberar esto al final
     assert(evlist != NULL);
+    
     //e_m_struct->evlist = evlist;
-    int a = 0;
     //printf("Entro al while soy %ld\n", pthread_self());
     while(1){
 
@@ -948,8 +995,10 @@ void* epoll_monitor(void* args){
         }while(a < 0 && errno == EINTR);
         //perror("epoll_wait");
         //assert(a != -1);
+        struct data_ptr* ptr;
+        ptr = CAST_DATA_PTR;
 
-        printf("Atiendo a fd: %d, soy hilo: %ld\n", CAST_DATA_PTR->fd, pthread_self());
+        printf("Atiendo a fd: %d, soy hilo: %ld\n", ptr->fd, pthread_self());
         //printf("FLAGS: %d\n", (int)e_m_struct->evlist->events);
 
         /*Tenemos un fd disponible para lectura.*/
@@ -965,17 +1014,17 @@ void* epoll_monitor(void* args){
             //printf("No es un cliente desconectado\n");
 
             /*Si es el fd del socket del server debemos atender a un nuevo cliente.*/
-            if ((CAST_DATA_PTR->fd == e_m_struct->sockfd_text) ||
-                (CAST_DATA_PTR->fd == e_m_struct->sockfd_binary)){
+            if ((ptr->fd == e_m_struct->sockfd_text) ||
+                (ptr->fd == e_m_struct->sockfd_binary)){
                 
                 printf("Hay que aceptar a alguien.\n");
                 /*Aceptamos al nuevo cliente*/
-                new_client(e_m_struct, evlist, CAST_DATA_PTR->text_or_binary);
+                new_client(e_m_struct, evlist, ptr->text_or_binary);
                 /*Lo añadimos a la instancia de epoll para monitorearlo.*/
             }
             else{
 
-                if (!CAST_DATA_PTR->text_or_binary){
+                if (!ptr->text_or_binary){
 
                     printf("Es un cliente de pedidos\n");
                     /*Este cliente no es nuevo por lo que nos hará consultas.*/
@@ -1000,6 +1049,9 @@ void* epoll_monitor(void* args){
 
 /*Esta función pasa a llamarse serv_init() y es la encargada de prender/manejar el server*/
 int main (int argc, char* argv[]){
+
+    size_t byte_limit = 300000000;
+    limit_mem(byte_limit);
 
     int sockfd_text; /*Este seria el socket de texto*/
     int sockfd_binary;; /*Este seria el socket binario -> 9999 testing*/

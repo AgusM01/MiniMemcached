@@ -55,11 +55,13 @@ void length_binary(unsigned char* commands, int* length);
 
 void int_to_binary(int num, void* len);
 
-void manage_client_binary(struct args_epoll_monitor* e_m_struct, 
+int manage_client_binary(struct args_epoll_monitor* e_m_struct, 
                      struct epoll_event* evlist);
                      
 void manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, char** token_comands, int cant_comm);
 
 void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
+
+void restart_binary(struct epoll_event* evlist);
 
 #endif /*__SERVER_H__*/
