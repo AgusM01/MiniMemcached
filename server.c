@@ -15,6 +15,8 @@
 #include "server.h"
 #include "text_parser.h"
 #include "structures/utils.h"
+#include "manage_clients.h"
+#include "comunicate.h"
 
 #define PORT_NUM_TEXT   8888
 #define PORT_NUM_BIN    8889
@@ -34,48 +36,6 @@
 //
 //}
 /*Argumentos para la funcion epoll_monitor*/
-
-struct args_epoll_monitor {
-    int epollfd;
-    int sockfd_text;
-    int sockfd_binary;
-    memc_t mem;
-};
-
-int recv_mem(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, void* buf, size_t len, int flags){
-    
-    int rcv;
-
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
-
-    rcv = recv(ptr->fd, buf, len, flags);
-    perror("REcieve 1");
-
-    if (rcv <= 0){
-            if(rcv != -1 || (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOMEM))            
-                return -1;
-        return 0;    
-    }
-
-    while (errno == ENOMEM){
-
-        memc_eviction(e_m_struct->mem);
-        errno = 0;
-        rcv = recv(ptr->fd, buf, len, flags);
-        perror("REcieve 2");
-        if (rcv <= 0){
-            if(rcv != -1 || (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOMEM))            
-                return -1;
-            return 0;
-        }
-        else
-            errno = 0;
-    }
-    //puts("Pude allocar");
-    return rcv;
-
-}
 
 /*Crea un socket TCP en dominio IPv4*/
 /*Retorna un fd que representa nuestro socket y al cual se conectarán los clientes.*/
@@ -264,31 +224,6 @@ int read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     return 0;
 }
 
-int writen(int fd, const void *buf, int len)
-{
-	int i = 0, rc;
-
-	while (i < len) {
-
-		int chunk = len - i;
-		rc = write(fd, buf + i, chunk);
-		if (rc <= 0)
-			return -1;
-		i += rc;
-    }
-    return 0;
-}
-
-int my_length(char* buf){
-    int i = 0;
-    while(buf[i] != '\0'){
-        if (buf[i] < 32 || buf[i] > 126)
-            return -1;
-        i++;
-    }
-    return i;
-}
-
 int read_content(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, int data_or_key){
 
     int pos = 0;
@@ -386,7 +321,7 @@ int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     if ((ptr_bin->commands[0] != 11)
         && (ptr_bin->commands[0] != 12)
         && (ptr_bin->commands[0] != 13)){
-            bye = manage_client_binary(e_m_struct, evlist);
+            bye = manage_bin_client(e_m_struct, evlist);
             return bye;
         }
 
@@ -451,7 +386,7 @@ int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     }
     /*En teoria aca ya tengo la key completa y el dato, en caso que haya sido un put*/
     
-    mng = manage_client_binary(e_m_struct, evlist);
+    mng = manage_bin_client(e_m_struct, evlist);
     
     if(mng == 0)
         restart_binary(evlist);
@@ -478,173 +413,6 @@ void restart_binary(struct epoll_event* evlist){
 
 }
 
-void length_binary(unsigned char* commands, int* length){
-
-    for (int i = 0; i < 4; i++){
-        int temp = (int)commands[i];
-        *length = *length + temp * pow(256, 3 - i);
-        //printf("temp en %d = %d\n",i,temp);
-    }
-    return;    
-}
-
-int manage_client_binary(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
-
-    char ok = 101; 
-    char einval = 111;
-    char enotfound = 112;
-    int command = -1;
-    int res = 0;
-    int snd = 0;
-    char* buf;
-    //unsigned char len[4];
-    int len;
-    stats_t stats;
-    char stat_buf[150];
-    int len_stat_buf = 0;
-
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
-    
-    struct data_ptr_binary* ptr_bin;
-    ptr_bin = CAST_DATA_PTR_BINARY;
-
-    /*Checkeo si es PUT*/
-    if ((int)ptr_bin->commands[0] == 11){
-        command = 0;
-        res = memc_put(e_m_struct->mem, 
-                        ptr_bin->key,
-                        ptr_bin->dato,
-                        ptr_bin->length_key,
-                        ptr_bin->length_dato,
-                        ptr->text_or_binary);
-        
-        snd = writen(ptr->fd, &ok, 1);
-        perror("snd_put_binary");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-            
-        return 0;
-    }
-    /*Checkeo si es GET*/
-    if ((int)ptr_bin->commands[0] == 13){
-        command = 1;
-        res = memc_get(e_m_struct->mem,
-                        ptr_bin->key,
-                        ptr_bin->length_key,
-                        (void**)&buf,
-                        ptr->text_or_binary);
-        if (!res){
-
-            snd = writen(ptr->fd, &enotfound, 1);
-            perror("error_send");
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                return -1;
-            }
-        }
-        else{
-            
-            len = htonl(res);
-            //int_to_binary(res, (void*)&len);
-            
-            snd = writen(ptr->fd, &ok, 1);
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                free(buf);
-                return -1;
-            }
-
-            snd = writen(ptr->fd, (void*)&len, 4);
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                free(buf);
-                return -1;
-            }
-            
-            snd = writen(ptr->fd, buf, res);
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                free(buf);
-                return -1;
-            }
-        }
-        return 0;
-    }
-
-    /*Checkeo si es DEL*/
-    if ((int)ptr_bin->commands[0] == 12){
-        command = 2;
-        res = memc_del(e_m_struct->mem,
-                        ptr_bin->key,
-                        ptr_bin->length_key,
-                        ptr->text_or_binary);
-
-        if (res == -1){
-            snd = writen(ptr->fd, &enotfound, 1);
-            perror("error_send");
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                return -1;
-            }
-        }
-        else{
-            snd = writen(ptr->fd, &ok, 1);
-            perror("error_send");
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                return -1;
-            }
-        }
-        return 0;
-    }
-    /*Checkeo si es STATS*/
-    if ((int)ptr_bin->commands[0] == 21){
-        command = 3;
-        stats = memc_stats(e_m_struct->mem);
-        len_stat_buf = sprintf(stat_buf,"PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
-
-        len = htonl(len_stat_buf);
-        //int_to_binary(len_stat_buf, (void*)&len);
-        
-        snd = writen(ptr->fd, &ok, 1);
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-        
-        snd = writen(ptr->fd, (void*)&len, 4);
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-        
-        
-        snd = writen(ptr->fd, &stat_buf, strlen(stat_buf));
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-
-    }
-    /*Comando erróneo*/
-    if (command == -1){
-
-        snd = writen(ptr->fd, &einval, 1);
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-
-    }
-    return 0;
-}
 
 /*Consume el texto del fd de un cliente.*/
 int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
@@ -878,7 +646,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     }
     int bye = 0;
     if (token_commands != NULL){
-        bye = manage_client(e_m_struct, evlist, token_commands, cant_comm);
+        bye = manage_txt_client(e_m_struct, evlist, token_commands, cant_comm);
         if (!ptr->missing)
             free(token_commands[0]);
         free(token_commands);
@@ -929,187 +697,6 @@ void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     return;
 }
 
-int manage_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, char** token_comands, int cant_comm){
-    
-    stats_t stats;
-
-    char* get_value;
-    
-    char einval[8] = "EINVAL\n";
-    char ok[4] = "OK\n";
-    char ebig[6] = "EBIG\n";
-    char ebinary[9] = "EBINARY\n";
-    char enotfound[11] = "ENOTFOUND\n";
-    char ok_get[4] = "OK ";
-    char stat_buf[MAX_CHAR];
-
-    int snd = 0;
-    int res;
-    int command = -1;
-    int len_stat_buf;
-
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
-
-    //printf("cant_comm: %d\n", cant_comm);
-    if (cant_comm == 0){
-        snd = writen(ptr->fd, einval, strlen(einval));
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1; 
-        }
-        return 0;
-    }
-    if (!strcmp(token_comands[0], "PUT")) 
-        command = 0;
-    if (!strcmp(token_comands[0], "DEL")) 
-        command = 1;
-    if (!strcmp(token_comands[0], "GET")) 
-        command = 2;
-    if (!strcmp(token_comands[0], "STATS")) 
-        command = 3;
-
-    if ((cant_comm == 0)
-        || (command == -1)
-        || ((command == 0) && (cant_comm != 3))
-        || ((command == 1) && (cant_comm != 2))
-        || ((command == 2) && (cant_comm != 2))
-        || ((command == 3) && (cant_comm != 1)))
-        {
-        
-        //for (int i = 0; i <  cant_comm; i++)
-        //    printf("token_command[%d]: %s\n", i, token_comands[i]);
-
-        snd = writen(ptr->fd, einval, strlen(einval));
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-        return 0;
-    }
-
-    if (command == 0){
-        //printf("Pongo clave: %s, valor: %s\n Longitudes clave: %ld, valor: %ld\n", token_comands[1], token_comands[2], strlen(token_comands[1]),strlen(token_comands[2]));
-        int len_tok_1 = my_length(token_comands[1]);
-        int len_tok_2 = my_length(token_comands[2]);
-
-        //printf("Longitud token 1: %ld\n", strlen(token_comands[1]));
-        //printf("len_tok_1: %d\n", len_tok_1);
-
-        if (len_tok_1 == -1 || len_tok_2 == -2){
-            snd = writen(ptr->fd, einval, strlen(einval));
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                return -1;    
-            }
-        }
-
-        res = memc_put  (e_m_struct->mem, 
-                        token_comands[1], 
-                        token_comands[2], 
-                        len_tok_1,
-                        len_tok_2,
-                        ptr->text_or_binary); /*TEXTO*/
-
-        snd = writen(ptr->fd, ok, strlen(ok));
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-        //snd = send(CAST_DATA_PTR->fd, ok, strlen(ok), MSG_NOSIGNAL);
-        //perror("error_send");
-        //if (snd == 0 || snd == -1){
-        //    quit_epoll(e_m_struct, evlist);
-        //    return;
-        //}
-    }
-    if (command == 1){
-        int len_tok_1 = my_length(token_comands[1]);
-        
-        if (len_tok_1 == -1){
-            snd = writen(ptr->fd, einval, strlen(einval));
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                return -1;    
-            }
-        }
-
-        res = memc_del  (e_m_struct->mem,
-                        token_comands[1],
-                        len_tok_1,
-                        ptr->text_or_binary);
-        
-        if (res == 0)
-            snd = writen(ptr->fd, ok, strlen(ok));
-        else{
-            snd = writen(ptr->fd, einval, strlen(einval));
-        }
-
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-
-    }
-    if (command == 2){
-
-        int len_tok_1 = my_length(token_comands[1]);
-        
-        if (len_tok_1 == -1){
-            snd = writen(ptr->fd, einval, strlen(einval));
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                return -1;
-            }
-            return 0;    
-        }
-
-        //printf("Busco: %s, longitud: %ld\n", token_comands[1], strlen(token_comands[1]));
-        res = memc_get  (e_m_struct->mem,
-                        token_comands[1], 
-                        len_tok_1, 
-                        (void**)&get_value, 
-                        ptr->text_or_binary);
-
-        if (res == -1)
-            snd = writen(ptr->fd, ebinary, strlen(ebinary));
-        if (res == 0)
-            snd = writen(ptr->fd, enotfound, strlen(enotfound));
-        if (res > 0){
-            char resp[res + 5];
-            sprintf(resp, "OK %s\n", get_value);
-            if (strlen(ok_get) <= 2048)
-                snd = writen(ptr->fd, resp, strlen(resp));
-            else    
-                snd = writen(ptr->fd, ebig, strlen(ebig));
-        }
-
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-
-        if (res > 0)
-            free(get_value);
-    
-    }
-    if (command == 3){
-
-        stats = memc_stats(e_m_struct->mem);
-        len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
-        assert(len_stat_buf > 0);
-        snd = writen(ptr->fd, stat_buf, len_stat_buf);
-        perror("error_send");
-        if (snd != 0){
-            quit_epoll(e_m_struct, evlist);
-            return -1;
-        }
-    }
-    return 0;
-}
 
 /*Le da un fd listo a cada thread*/
 void* epoll_monitor(void* args){
@@ -1219,18 +806,6 @@ int main (int argc, char* argv[]){
     /*Añade el fd del socket binario creado a la instancia de epoll para monitorearlo.*/
     epoll_add(sockfd_binary, epollfd, 1, mem);
 
-    //int test = 5283612;
-    //unsigned char len[4];
-    //printf("%p\n", len);
-    //int_to_binary(test, (void*)len);
-    //for (int i = 0; i < 4; i++){
-    //    int temp = (int)len[i];
-    //    printf("temp: %d\n", temp);
-    //}
-
-    //printf("EPOLLONESHOT: %d\n", (int)EPOLLONESHOT);
-    //printf("EPOLLIN: %d\n", (int)EPOLLIN);
-    //printf("EPOLLRDHUP: %d\n", (int)EPOLLRDHUP);
     
     int cores = sysconf(_SC_NPROCESSORS_CONF);
 

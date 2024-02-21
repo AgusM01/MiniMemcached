@@ -27,6 +27,13 @@ struct data_ptr_binary{
     int data_or_key;
 };
 
+struct args_epoll_monitor {
+    int epollfd;
+    int sockfd_text;
+    int sockfd_binary;
+    memc_t mem;
+};
+
 struct args_epoll_monitor; 
 /*Crea un socket TCP en dominio IPv4*/
 /*Retorna un fd que representa nuestro socket y al cual se conectarán los clientes.*/
@@ -52,8 +59,6 @@ int text_consume   (struct args_epoll_monitor* e_m_struct,
 
 /*Le da un fd listo a cada thread*/
 void* epoll_monitor (void* args);
-
-void length_binary(unsigned char* commands, int* length);
 
 void int_to_binary(int num, void* len);
 
