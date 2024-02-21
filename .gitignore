@@ -3,4 +3,5 @@ pedidos.txt
 *.beam
 server
 *.txt
-
+*.o
+vgcore.*
