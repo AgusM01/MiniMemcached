@@ -1,6 +1,6 @@
 -module(test).
 -import(memcache, []).
--export([prueba/0, destruccion_total/1, readlines/1]).
+-export([prueba/0, destruccion_total/1, readlines/1, test_uno/1]).
 
 
 prueba() ->
@@ -10,6 +10,20 @@ prueba() ->
     memcache:get(S, pruba),
     memcache:del(S, pruba),
     memcache:close(S).
+
+
+test_uno(N) ->
+    S = memcache:start(localhost),
+    genera_puts(S, N).
+
+genera_puts(S, 0) ->
+    memcache:put(S, 0, "estoycasadojefe");
+
+genera_puts(S, N) ->
+    case memcache:put(S, N - 1, "estoycansadojefe") of
+        ok -> genera_puts(S, N - 1);
+        Error -> {Error, memcache:close(S)}
+    end.
 
 
 destruccion_total(0) ->

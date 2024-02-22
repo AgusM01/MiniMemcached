@@ -1,7 +1,7 @@
 #ifndef __SERVER_H__
 #define __SERVER_H__
 
-#include "structures/memc.h"
+#include "../structures/memc.h"
 #include <sys/epoll.h>
 
 /*Estructura con la informacion de cada fd guardada en la parte de data de cada estructura epoll_event*/
@@ -39,5 +39,7 @@ struct args_epoll_monitor {
 struct args_epoll_monitor; 
 /*Crea un socket TCP en dominio IPv4*/
 /*Retorna un fd que representa nuestro socket y al cual se conectarán los clientes.*/
+
+int server();
 
 #endif /*__SERVER_H__*/

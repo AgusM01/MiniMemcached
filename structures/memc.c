@@ -6,6 +6,7 @@
 #include "memc_node.h"
 #include "memc_stat.h"
 #include "utils.h"
+#include <complex.h>
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
@@ -164,26 +165,31 @@ int memc_eviction(memc_t mem) {
     unsigned tab_index;
 
     memc_lock(mem);
+
+    //printf("Nodeos Izq a Der : %d.\n", queue_test(mem->queue->lru, LEFT));
+    //printf("Nodeos Der a Izq : %d.\n", queue_test(mem->queue->mru, RIGHT));
+    printf("keys %ld.\n", stat_get(mem->keys));
     // Mientras la queue tenga nodos para liberar y le memoria
     // liberada sea menor que el tamaño definido.
     while(memory < D_MEMORY_BLOCK && (tbd = queue_dqlru(mem->queue))) {
-        puts("Borro cosas.");
+        //printf("Borro %d cosas.", count);
         memory += sizeof(node_t) + tbd->data_len + tbd->key_len;
-        printf("memory : %ld.\n", memory);
-        printf("tbd : %p.\n", tbd);
+        // printf("memory : %ld.\n", memory);
+        // printf("tbd : %p.\n", tbd);
         node_discc(HASH, tbd);
 
-        tab_index = mem->hash(tbd->key_buff,tbd->key_len);
+        tab_index = mem->hash(tbd->key_buff,tbd->key_len) % mem->buckets;
 
         node_free(tbd);
 
         if (tbd == mem->tab[tab_index])
             mem->tab[tab_index] = NULL;
 
-        printf("tbd : %p.\n", tbd);
+        // printf("tbd : %p.\n", tbd);
 
         count++;
     }
+    printf("Eviction : elimine %d.\n", count);
     memc_unlock(mem);
 
     stat_add(mem->keys, -count);
@@ -204,7 +210,7 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
             break;
         case CALLOC:
             //puts("IMPOSIBLE");
-            ret = calloc(bytes, bytes);
+            ret = calloc(bytes, 8);
             break;
         case REALLOC:
             ret = realloc(rea , bytes);
@@ -212,7 +218,8 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
     }
 
     if (!ret){
-
+        perror("Antes del loop");
+        printf("Pedí %ld bytes.\n",bytes);
         while (!ret && flag) { // ret == NULL
             // REGIÓN CRÍTICA 
             //puts("Holanda");
@@ -222,15 +229,19 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
             switch (fun) {
                 case MALLOC:
                     ret = malloc(bytes);
+                    break;
                 case CALLOC:
                     ret = calloc(bytes, bytes);
+                    break;
                 case REALLOC:
                     ret = realloc(rea , bytes);
+                    break;
             }
         }
 
         if(!ret) {
             perror("memc_eviction");
+            exit(-1);
         }
     }
     
@@ -250,11 +261,7 @@ void memc_rehash(memc_t mem){
         //   stat_unlock(mem->keys);
 
         unsigned new_size = mem->buckets * 2;
-        table_t new_tab = memc_alloc(mem, sizeof(node_t*) * new_size, MALLOC, NULL);
-
-        for (int i = 0; i < new_size; i++) {
-            new_tab[i] = NULL;
-        }
+        table_t new_tab = memc_alloc(mem,new_size, CALLOC, NULL);
 
         //Frenamos futuros threads
         sem_wait(mem->turnstile);
@@ -382,7 +389,6 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
 
         if (md == TEXTO && temp->mode == BINARIO ) {
             len = -1;
-            sem_post(mem->tab_shield[shield_index]);
         } else {
 
             sem_wait(mem->queue_mutex);
@@ -408,12 +414,9 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
             sem_post(mem->queue_mutex);
 
             //Buffer copiado, liberamos el mutex.
-            sem_post(mem->tab_shield[shield_index]);
         }
-    } else {
-        //No se encontró el nodo, liberamos el mutex
-        sem_post(mem->tab_shield[shield_index]);
-    }
+    } 
+    sem_post(mem->tab_shield[shield_index]);
 
     ls_unlock(mem->evic, mem->evic_mutex);
     ls_unlock(mem->rhsh, mem->rehash_mutex);
@@ -424,7 +427,6 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
 
 
 int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
-
     //Turnstile
     sem_wait(mem->turnstile);
     sem_post(mem->turnstile);
@@ -453,13 +455,13 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
     //Encontramos el Nodo.
 
     //Desconectamos de las estructuras y liberamos
-    node_discc(HASH ,temp);
     stat_dec(mem->keys);
     sem_wait(mem->queue_mutex);
+    node_discc(HASH ,temp);
     node_discc(QUEUE ,temp);
+    node_free(temp);
     sem_post(mem->queue_mutex);
     sem_post(mem->tab_shield[shield_index]);
-    node_free(temp);
     
     if (temp == mem->tab[tab_index])
         mem->tab[tab_index] = NULL;

@@ -1,7 +1,7 @@
 #ifndef __TEXT_H__
 #define __TEXT_H__
 
-#include "structures/memc.h"
+#include "../structures/memc.h"
 #include "epoll.h"
 
 

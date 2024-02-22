@@ -8,7 +8,7 @@
 #include <errno.h>
 #include "server.h"
 #include "text.h"
-#include "structures/utils.h"
+#include "../structures/utils.h"
 #include "manage_clients.h"
 #include "comunicate.h"
 #include "binary.h"

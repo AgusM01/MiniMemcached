@@ -6,7 +6,7 @@
 #include <errno.h>
 #include "server.h"
 #include "text.h"
-#include "structures/utils.h"
+#include "../structures/utils.h"
 #include "binary.h"
 #include "epoll.h"
 #include "sock.h"

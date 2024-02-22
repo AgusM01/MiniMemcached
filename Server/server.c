@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <sys/signal.h>
 #include "server.h"
-#include "structures/utils.h"
+#include "../structures/utils.h"
 #include "epoll.h"
 #include "sock.h"
 
@@ -12,8 +12,8 @@
 #define PORT_NUM_BIN    8889
 
 
-/*Esta función pasa a llamarse serv_init() y es la encargada de prender/manejar el server*/
-int main (int argc, char* argv[]){
+/*Funcion encargada de ejecutar el server*/
+int server(){
 
     size_t byte_limit = 100000000000;
     limit_mem(byte_limit);
@@ -57,8 +57,5 @@ int main (int argc, char* argv[]){
     for(int i = 0; i < cores; i++)
         pthread_join(t[i], NULL);
 
-    /*Capturar señal SIGPIPE*/
-
-    
     return 0;
 }
