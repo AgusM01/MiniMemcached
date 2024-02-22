@@ -4,7 +4,6 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#include "server.h"
 #include "text.h"
 #include "../structures/utils.h"
 #include "binary.h"

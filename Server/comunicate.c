@@ -7,7 +7,6 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <errno.h>
-#include "server.h"
 #include "comunicate.h"
 
 #define MAX_CHAR 2048

@@ -1,7 +1,7 @@
 #ifndef __MANAGE_CLIENTS_H__
 #define __MANAGE_CLIENTS_H__
 
-#include "server.h"
+#include "epoll.h"
 
 #define MAX_CHAR 2048
 #define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)

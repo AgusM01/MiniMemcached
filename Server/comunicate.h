@@ -1,6 +1,8 @@
 #ifndef __COMUNICATE_H__
 #define __COMUNICATE_H__
 
+#include "manage_clients.h"
+#include "epoll.h"
 #include <pthread.h>
 
 int writen  (int fd, 

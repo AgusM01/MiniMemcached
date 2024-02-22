@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include "server.h"
 #include "text.h"
 #include "../structures/utils.h"
 #include "manage_clients.h"
