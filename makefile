@@ -4,12 +4,12 @@
 CC = gcc
 CFLAGS = -Wall -Werror -g -pthread 
 TARGET = server 
-STRUCTURES = structures/memc.c structures/memc_node.c structures/memc_queue.c structures/memc_table.c 
+STRUCTURES = Structures/memc.c Structures/memc_node.c Structures/memc_queue.c Structures/memc_table.c 
 SERVER = Server/text.c Server/manage_clients.c Server/comunicate.c Server/binary.c Server/epoll.c Server/sock.c 
 MAIN = main.c
-UTILS = structures/utils.c
-CONCURRENT = structures/lightswitch.c structures/memc_stat.c
-TEST = structures/test.c
+UTILS = Structures/utils.c
+CONCURRENT = Structures/lightswitch.c Structures/memc_stat.c
+TEST = Structures/test.c
 
 OBJECTS = $(MAIN:.c=.o) $(SERVER:.c=.o) $(STRUCTURES:.c=.o) $(UTILS:.c=.o) $(CONCURRENT:.c=.o) 
 
@@ -22,4 +22,4 @@ $(TARGET): $(OBJECTS)
 
 # Regla para limpiar los archivos generados
 clean:
-	rm -f $(TARGET) *.o Server/*.o structures/*.o 
+	rm -f $(TARGET) *.o Server/*.o Structures/*.o 
