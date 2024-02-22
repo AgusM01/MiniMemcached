@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <errno.h>
 #include "text.h"
-#include "../structures/utils.h"
+#include "../Structures/utils.h"
 #include "binary.h"
 #include "epoll.h"
 #include "sock.h"

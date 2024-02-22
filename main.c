@@ -3,10 +3,10 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/signal.h>
-#include "structures/utils.h"
+#include "Structures/utils.h"
 #include "Server/epoll.h"
 #include "Server/sock.h"
-#include "structures/memc.h"
+#include "Structures/memc.h"
 #include <sys/epoll.h>
 
 #define PORT_NUM_TEXT   8888

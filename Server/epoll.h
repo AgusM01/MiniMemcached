@@ -1,7 +1,7 @@
 #ifndef __EPOLL_H__
 #define __EPOLL_H__
 
-#include "../structures/memc.h"
+#include "../Structures/memc.h"
 #include <sys/epoll.h>
 
 struct data_ptr_binary{

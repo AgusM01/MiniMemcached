@@ -7,7 +7,7 @@
 #include <string.h>
 #include <errno.h>
 #include "text.h"
-#include "../structures/utils.h"
+#include "../Structures/utils.h"
 #include "manage_clients.h"
 #include "comunicate.h"
 #include "binary.h"
@@ -255,7 +255,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             free(token_commands[0]);
         free(token_commands);
     }
-   else{
+    else {
         snd = writen(ptr->fd, &einval, strlen(einval));
         perror("error_send");
         if (snd != 0){
