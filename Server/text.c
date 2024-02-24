@@ -105,7 +105,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             //    return;
             //}
             snd = writen(ptr->fd, &err, strlen(err));
-            perror("error_send");
+            if (snd == -1)
+                perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 return -1;
@@ -136,7 +137,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
                 //}
                 
                 snd = writen(ptr->fd, &err, strlen(err));
-                perror("error_send");
+                if (snd == -1)
+                    perror("error_send");
                 if (snd != 0){
                     quit_epoll(e_m_struct, evlist);
                     return -1;
@@ -169,7 +171,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
                 ptr->command[ptr->readed] = '\0';
             else{
                 snd = writen(ptr->fd, &err, strlen(err));
-                perror("error_send");
+                if (snd == -1) 
+                    perror("error_send");
                 if (snd != 0){
                     quit_epoll(e_m_struct, evlist);
                     return -1;
@@ -257,7 +260,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     }
     else {
         snd = writen(ptr->fd, &einval, strlen(einval));
-        perror("error_send");
+        if (snd == -1) 
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;

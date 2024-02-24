@@ -39,7 +39,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     //printf("cant_comm: %d\n", cant_comm);
     if (cant_comm == 0){
         snd = writen(ptr->fd, einval, strlen(einval));
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1; 
@@ -67,7 +68,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         //    printf("token_command[%d]: %s\n", i, token_comands[i]);
 
         snd = writen(ptr->fd, einval, strlen(einval));
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
@@ -172,7 +174,9 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
                 snd = writen(ptr->fd, ebig, strlen(ebig));
         }
 
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
+
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
@@ -188,7 +192,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
         assert(len_stat_buf > 0);
         snd = writen(ptr->fd, stat_buf, len_stat_buf);
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
@@ -228,7 +233,8 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
                         ptr->text_or_binary);
         
         snd = writen(ptr->fd, &ok, 1);
-        perror("snd_put_binary");
+        if (snd == -1)
+            perror("snd_put_binary");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
@@ -247,7 +253,8 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         if (!res){
 
             snd = writen(ptr->fd, &enotfound, 1);
-            perror("error_send");
+            if (snd == -1)
+                perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 return -1;
@@ -292,7 +299,8 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
 
         if (res == -1){
             snd = writen(ptr->fd, &enotfound, 1);
-            perror("error_send");
+            if (snd == -1)
+                perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 return -1;
@@ -300,7 +308,8 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         }
         else{
             snd = writen(ptr->fd, &ok, 1);
-            perror("error_send");
+            if (snd == -1)
+                perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 return -1;
@@ -318,14 +327,16 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         //int_to_binary(len_stat_buf, (void*)&len);
         
         snd = writen(ptr->fd, &ok, 1);
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
         }
         
         snd = writen(ptr->fd, (void*)&len, 4);
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
@@ -333,7 +344,8 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         
         
         snd = writen(ptr->fd, &stat_buf, strlen(stat_buf));
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
@@ -344,7 +356,8 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     if (command == -1){
 
         snd = writen(ptr->fd, &einval, 1);
-        perror("error_send");
+        if (snd == -1)
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;

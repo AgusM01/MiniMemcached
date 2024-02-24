@@ -22,7 +22,8 @@
 void epoll_initiate(int* epollfd){
 
     *epollfd = epoll_create(1);
-    perror("epoll_create");
+    if (!*epollfd)
+        perror("epoll_create : epoll.c 26");
     
     return;
 }
@@ -70,8 +71,8 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
 
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; //NO USAR EDGE TRIGGERED YA QUE SI UN HILO MANDA MUCHISIMO NO VA A AVISAR PENSAR CHARLADO CON NERI ESCUCHAR AUDIO ZOE
     
-    fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK));
-    perror("fcntl_ret");
+    if ( -1 == fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK)))
+        perror("fcntl_ret epoll.c");
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
     return;

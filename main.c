@@ -13,16 +13,21 @@
 #define PORT_NUM_BIN    8889
 
 /*Funcion encargada de ejecutar el server*/
-int main(){
+int main(int argc, char* argv[]){
 
-    size_t byte_limit = 100000000000;
+    if (argc != 2) {
+        fprintf(stderr, "Bad args -> ./server MEMLIMIT\n");
+        exit(1);
+    }
+
+    size_t byte_limit = atoll(argv[1]);
     limit_mem(byte_limit);
 
     int sockfd_text; /*Este seria el socket de texto*/
     int sockfd_binary;; /*Este seria el socket binario -> 9999 testing*/
     int epollfd; /*fd referente a la instancia de epoll*/
 
-    memc_t mem = memc_init((HasFunc)hash_len, 2, 500, 0);
+    memc_t mem = memc_init((HasFunc)hash_len, 1000000, 500);
 
     /*Crea los sockets y devuelve su fd ya bindeado y en escucha*/
     sock_creation(&sockfd_text, PORT_NUM_TEXT);

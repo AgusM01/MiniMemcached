@@ -5,6 +5,7 @@
 #include <semaphore.h>
 #include "memc_queue.h"
 #include "lightswitch.h"
+#include "memc_stat.h"
 #include <stdlib.h>
 
 #define INITIAL_BUCKETS 2
@@ -14,8 +15,33 @@
 #define TEXTO 0
 #define BINARIO 1
 
-struct MemCache;
+struct MemCache {
+    //Estadisticas de la cache.
+    stat_t* puts;
+    stat_t* gets;
+    stat_t* dels;
+    stat_t* keys;
 
+    //Variables para la Tabla Hash.
+    table_t tab;
+    unsigned buckets;
+    HasFunc hash;
+
+    //Variables para la Priority Queue
+    queue_t* queue;
+
+    //Variables para sincronización
+    ls_t* evic;           //---> Estructura para el LightSwitch
+
+    sem_t* evic_mutex;    //---> Mutex para el LightSwitch
+    sem_t* queue_mutex;   //---> Mutex para la Queue
+    sem_t* turnstile;     //---> Mutex para funciones de rehash y memoria. 
+
+    //sem_t* memory_mutex;  //---> Mutex para manejo de memoria
+    sem_t** tab_shield;   //---> tabla de mutex para regiones en la tabla
+    int shield_size;      //---> Cantidad de mutex
+
+};
 //Opciones para memc_alloc
 typedef enum fun {
     MALLOC,
@@ -42,8 +68,7 @@ typedef struct MemCache* memc_t;
 memc_t memc_init(
     HasFunc hash,
     unsigned tab_size,
-    unsigned shield_size,
-    unsigned memory_limit 
+    unsigned shield_size 
     );
 
 void memc_destroy(memc_t mem);

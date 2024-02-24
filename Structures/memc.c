@@ -6,54 +6,19 @@
 #include "memc_node.h"
 #include "memc_stat.h"
 #include "utils.h"
-#include <complex.h>
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
 #include <stdio.h>
 
 
-
-struct MemCache {
-    //Estadisticas de la cache.
-    stat_t* puts;
-    stat_t* gets;
-    stat_t* dels;
-    stat_t* keys;
-
-    //Variables para la Tabla Hash.
-    table_t tab;
-    unsigned buckets;
-    HasFunc hash;
-
-    //Variables para la Priority Queue
-    queue_t* queue;
-
-    //Variables para sincronización
-    ls_t* evic;           //---> Estructura para el LightSwitch
-    ls_t* rhsh;           //---> Estructura para el LightSwitch
-
-    sem_t* evic_mutex;    //---> Mutex para el LightSwitch
-    sem_t* rehash_mutex;  //---> Mutex para rehash
-    sem_t* queue_mutex;   //---> Mutex para la Queue
-    sem_t* turnstile;     //---> Mutex para funciones de rehash y memoria. 
-
-    //sem_t* memory_mutex;  //---> Mutex para manejo de memoria
-    sem_t** tab_shield;   //---> tabla de mutex para regiones en la tabla
-    int shield_size;      //---> Cantidad de mutex
-
-};
-
 memc_t memc_init(
         HasFunc hash,
         unsigned  tab_size,
-        unsigned shield_size,
-        unsigned memory_limit
-        ) {
+        unsigned shield_size) {
 
 
     memc_t mem;
-    //assert(!limit_mem(memory_limit, RLIMIT_MEMLOCK));
     assert((mem = malloc(sizeof(struct MemCache))));
 
     mem->dels = stat_init(0);
@@ -62,30 +27,28 @@ memc_t memc_init(
     mem->keys = stat_init(0);
 
     mem->tab = table_init(tab_size);
-    mem->buckets = INITIAL_BUCKETS;
+    mem->buckets = tab_size;
     mem->hash = hash;
 
-    mem->queue = queue_init();
+    assert((mem->queue = queue_init()));
 
     mem->evic = ls_init();
-    mem->rhsh = ls_init();
 
     assert((mem->evic_mutex = malloc(sizeof(sem_t))));
-    assert((mem->rehash_mutex = malloc(sizeof(sem_t))));
     assert((mem->queue_mutex = malloc(sizeof(sem_t))));
     assert((mem->turnstile = malloc(sizeof(sem_t))));
 
-    sem_init(mem->evic_mutex, 0, 1);
-    sem_init(mem->rehash_mutex, 0, 1);
-    sem_init(mem->queue_mutex, 0, 1);
-    sem_init(mem->turnstile, 0, 1);
+    assert(sem_init(mem->evic_mutex, 0, 1) == 0);
+    assert(sem_init(mem->queue_mutex, 0, 1) == 0);
+    assert(sem_init(mem->turnstile, 0, 1) == 0);
 
     mem->tab_shield = malloc(sizeof(sem_t*) * shield_size);
+    assert(mem->tab_shield != NULL);
     mem->shield_size = shield_size;
 
     for (int i = 0; i < shield_size; i++) {
         assert((mem->tab_shield[i] = malloc(sizeof(sem_t))));
-        sem_init(mem->tab_shield[i], 0, 1);
+        assert(sem_init(mem->tab_shield[i], 0, 1) == 0);
     }
 
     return mem;
@@ -102,15 +65,12 @@ void memc_destroy(memc_t mem) {
     queue_destroy(mem->queue);
 
     ls_destroy(mem->evic);
-    ls_destroy(mem->rhsh);
 
     sem_destroy(mem->evic_mutex);
-    sem_destroy(mem->rehash_mutex);
     sem_destroy(mem->queue_mutex);
     sem_destroy(mem->turnstile);
 
     free(mem->evic_mutex);
-    free(mem->rehash_mutex);
     free(mem->queue_mutex);
     free(mem->turnstile);
 
@@ -147,15 +107,16 @@ void node_set(
 //Bloquea los nuevos threads
 // 
 void memc_lock(memc_t mem) {
-    sem_wait(mem->turnstile);
-    sem_wait(mem->evic_mutex);
+    assert(!sem_wait(mem->turnstile));
+    assert(!sem_wait(mem->evic_mutex));
 }
 
 void memc_unlock(memc_t mem) {
-    sem_post(mem->turnstile);
-    sem_post(mem->evic_mutex);
+    assert(!sem_post(mem->turnstile));
+    assert(!sem_post(mem->evic_mutex));
 }
 
+//TODO -> testear
 int memc_eviction(memc_t mem) {
 
     int count = 0;
@@ -175,7 +136,7 @@ int memc_eviction(memc_t mem) {
         //printf("Borro %d cosas.", count);
         memory += sizeof(node_t) + tbd->data_len + tbd->key_len;
         // printf("memory : %ld.\n", memory);
-        // printf("tbd : %p.\n", tbd);
+        printf("tbd : %p.\n", tbd);
         node_discc(HASH, tbd);
 
         tab_index = mem->hash(tbd->key_buff,tbd->key_len) % mem->buckets;
@@ -198,18 +159,14 @@ int memc_eviction(memc_t mem) {
 }
 
 void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
-    void* ret;
-    int keys;
+    void* ret = NULL;
     int flag = 1;
-
-
 
     switch (fun) {
         case MALLOC:
             ret = malloc(bytes);
             break;
         case CALLOC:
-            //puts("IMPOSIBLE");
             ret = calloc(bytes, 8);
             break;
         case REALLOC:
@@ -217,13 +174,13 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
             break;
     }
 
-    if (!ret){
+    if (ret == NULL){
         perror("Antes del loop");
         printf("Pedí %ld bytes.\n",bytes);
-        while (!ret && flag) { // ret == NULL
+        while ((ret == NULL) && flag) { // ret == NULL
             // REGIÓN CRÍTICA 
             //puts("Holanda");
-            if((keys = memc_eviction(mem)) == -1)
+            if(memc_eviction(mem) == -1)
                 flag = 0;
             
             switch (fun) {
@@ -239,7 +196,7 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
             }
         }
 
-        if(!ret) {
+        if(ret == NULL) {
             perror("memc_eviction");
             exit(-1);
         }
@@ -247,43 +204,6 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
     
 
     return ret;
-}
-
-void memc_rehash(memc_t mem){
-
-    //stat_lock(mem->keys); // TODO -> Hace falta ?
-        //Se tiene que dar que justo la condición, capaz que 
-        //Cunado terminan el resto de threas la desigualdad no vale
-        //Pero nos basta con que en un instante se supere el factor
-        //Compara poder rehashear.
-    if ((100 * stat_get(mem->keys)) >= (75 * mem->buckets)) {
-        //Liberamos las keyS para que terminene el resto de procesos
-        //   stat_unlock(mem->keys);
-
-        unsigned new_size = mem->buckets * 2;
-        table_t new_tab = memc_alloc(mem,new_size, CALLOC, NULL);
-
-        //Frenamos futuros threads
-        sem_wait(mem->turnstile);
-        //Esperamos que todos los trhead dentro de la ls terminen.
-        sem_wait(mem->rehash_mutex);
-        //Rehash
-        table_rehash(
-            mem->tab,
-            new_tab,
-            mem->buckets,
-            new_size,
-            mem->hash
-        );
-        //free(mem->tab);
-        mem->tab = new_tab;
-        mem->buckets = new_size;
-        //Liberamos threads y liberamos la ls
-        sem_post(mem->rehash_mutex);
-        sem_post(mem->turnstile);
-    } //else {
-      //  stat_unlock(mem->keys);
-    //}
 }
 
 int memc_put(
@@ -295,34 +215,29 @@ int memc_put(
     mode_t md
     ) {
 
-    memc_rehash(mem);
-
     //Turnstile
-    sem_wait(mem->turnstile);
-    sem_post(mem->turnstile);
-
-    //LightSwitch On -> rehash
-    ls_lock(mem->rhsh, mem->rehash_mutex);
+    assert(!sem_wait(mem->turnstile));
+    assert(!sem_post(mem->turnstile));
 
     int search;
     unsigned i = mem->hash(key,key_len);
     unsigned tab_index = i % mem->buckets;
-    unsigned shield_index = i % mem->shield_size;
+    unsigned shield_index = tab_index % mem->shield_size;
     node_t* temp = NULL;
 
     void* buff_data = memc_alloc(mem, data_len, MALLOC, NULL);
     memcpy(buff_data, data, data_len);
 
     //Mutex Hash
-    sem_wait(mem->tab_shield[shield_index]);
+    assert(!sem_wait(mem->tab_shield[shield_index]));
 
     //LightSwitch On -> alloc
     ls_lock(mem->evic, mem->evic_mutex);
-
     //REGION CRÍTICA HASH
 
+    search = table_search(mem->tab, key, key_len, tab_index, &temp);
     //Busqueda de key ya existente
-    if (!(search = table_search(mem->tab, key, key_len, tab_index, &temp))) {
+    if (search == 0) {
         //Key encotrada, remplazo del Dato
         free(temp->data_buff);
         temp->data_buff = buff_data;
@@ -347,18 +262,18 @@ int memc_put(
     }
 
     //Damos prioridad al Nodo en la Queue
-    sem_wait(mem->queue_mutex);
-    if (!search) // Hay un nodo ya existente en la Queue
+    
+    assert(!sem_wait(mem->queue_mutex));
+    if (search == 0) // Hay un nodo ya existente en la Queue
         node_discc(QUEUE, temp);
     queue_addmru(mem->queue, temp);
-    sem_post(mem->queue_mutex);
+    assert(!sem_post(mem->queue_mutex));
 
     //FIN REGION CRITICA HASH
-    sem_post(mem->tab_shield[shield_index]);
+    assert(!sem_post(mem->tab_shield[shield_index]));
 
     //LightSwitch Off -> Both 
     ls_unlock(mem->evic, mem->evic_mutex);
-    ls_unlock(mem->rhsh, mem->rehash_mutex);
 
     stat_inc(mem->puts);
 
@@ -367,18 +282,18 @@ int memc_put(
 
 int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t md) {
 
+
     //Turnstile
-    sem_wait(mem->turnstile);
-    sem_post(mem->turnstile);
-    ls_lock(mem->rhsh, mem->rehash_mutex);
+    assert(!sem_wait(mem->turnstile));
+    assert(!sem_post(mem->turnstile));
     
     unsigned i = mem->hash(key,key_len);
     unsigned tab_index = i % mem->buckets;
-    unsigned shield_index = i % mem->shield_size;
+    unsigned shield_index = tab_index % mem->shield_size;
     unsigned len = 0;
-    node_t* temp;
+    node_t* temp = NULL;
 
-    sem_wait(mem->tab_shield[shield_index]);
+    assert(!sem_wait(mem->tab_shield[shield_index]));
 
     //LightSwitch
     ls_lock(mem->evic, mem->evic_mutex); 
@@ -391,84 +306,84 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
             len = -1;
         } else {
 
-            sem_wait(mem->queue_mutex);
+            assert(!sem_wait(mem->queue_mutex));
             //Retiramos el nodo de la Queue para que no
             //sea eliminado en el desalojo.
             node_discc(QUEUE, temp); 
-            sem_post(mem->queue_mutex);
+            assert(!sem_post(mem->queue_mutex));
 
             len = temp->data_len;
 
             ls_unlock(mem->evic, mem->evic_mutex);
             //Pedimos memoria para devolver el dato
-            *data_buff = memc_alloc(mem,len + 1, MALLOC, NULL);
+            *data_buff = memc_alloc(mem,len + (md == TEXTO ? 1: 0), MALLOC, NULL);
             ls_lock(mem->evic, mem->evic_mutex);
 
             memcpy(*data_buff, temp->data_buff, len);
-            //printf("Len : %d\n", len);
-            ((char**)data_buff)[0][len]  = 0;
+            if (md == TEXTO) 
+                ((char**)data_buff)[0][len]  = 0;
 
-            sem_wait(mem->queue_mutex);
+            assert(!sem_wait(mem->queue_mutex));
             //Agregamos el nodo al principio de la queue
             queue_addmru(mem->queue, temp); 
-            sem_post(mem->queue_mutex);
+            assert(!sem_post(mem->queue_mutex));
 
             //Buffer copiado, liberamos el mutex.
         }
     } 
-    sem_post(mem->tab_shield[shield_index]);
+
+
+    assert(!sem_post(mem->tab_shield[shield_index]));
 
     ls_unlock(mem->evic, mem->evic_mutex);
-    ls_unlock(mem->rhsh, mem->rehash_mutex);
 
     stat_inc(mem->gets);
+
     return len;
 }
 
 
 int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
-    //Turnstile
-    sem_wait(mem->turnstile);
-    sem_post(mem->turnstile);
 
-    //LightSwitch -> Rehash
-    ls_lock(mem->rhsh, mem->rehash_mutex);
-    
+    //Turnstile
+    assert(!sem_wait(mem->turnstile));
+    assert(!sem_post(mem->turnstile));
+
     unsigned i = mem->hash(key,key_len);
     unsigned tab_index = i % mem->buckets;
-    unsigned shield_index = i % mem->shield_size;
+    unsigned shield_index = tab_index % mem->shield_size;
     node_t* temp = NULL;
 
-    sem_wait(mem->tab_shield[shield_index]);
+    assert(!sem_wait(mem->tab_shield[shield_index]));
 
     //LightSwitch -> alloc
     ls_lock(mem->evic, mem->evic_mutex);
-    if (table_search(mem->tab, key, key_len, tab_index, &temp)) {
+    if (table_search(mem->tab, key, key_len, tab_index, &temp) == -1) {
         // No se encontró la key, liberamos los mutex
-        sem_post(mem->tab_shield[shield_index]);
+        assert(!sem_post(mem->tab_shield[shield_index]));
         ls_unlock(mem->evic, mem->evic_mutex);
-        ls_unlock(mem->rhsh, mem->rehash_mutex);
         stat_inc(mem->dels);
         return -1;
     }
 
-    //Encontramos el Nodo.
 
     //Desconectamos de las estructuras y liberamos
     stat_dec(mem->keys);
-    sem_wait(mem->queue_mutex);
+
+    //Encontramos el Nodo.
     node_discc(HASH ,temp);
+    assert(!sem_wait(mem->queue_mutex));
     node_discc(QUEUE ,temp);
+    assert(!sem_post(mem->queue_mutex));
     node_free(temp);
-    sem_post(mem->queue_mutex);
-    sem_post(mem->tab_shield[shield_index]);
-    
+
     if (temp == mem->tab[tab_index])
         mem->tab[tab_index] = NULL;
 
+    assert(!sem_post(mem->tab_shield[shield_index]));
+
     //LightSwitch Off -> Both
     ls_unlock(mem->evic, mem->evic_mutex);
-    ls_unlock(mem->rhsh, mem->rehash_mutex);
 
     stat_inc(mem->dels);
 
