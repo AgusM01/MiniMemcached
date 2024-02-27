@@ -2,7 +2,7 @@
 -export([start/1,get/2,put/3,del/2,stats/1,close/1]).
 
 %start :: SockAddr -> pid()
-% Genera la conección del servidor en la dirección SockAddr
+% Genera la conexión del servidor en la dirección SockAddr
 % en modo binario. Devuelve el identificador del proceso que
 % maneja los pedidos al server.
 start(Host) ->
@@ -13,7 +13,7 @@ start(Host) ->
 %server :: Socket 
 % Loop que maneja los pedidos al servidor de los clientes.
 % La idea es que un cliente pueda tener varios procesos accediendo
-% a la misma conección y que el proceso server los vaya responediendo.
+% a la misma conexión y que el proceso server los vaya responediendo.
 server(S) -> 
     receive
         {From, Cmd, Args} ->

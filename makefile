@@ -3,7 +3,7 @@
 # Definición de variables
 CC = gcc
 CFLAGS = -Wall -Werror -g -pthread 
-TARGET = server 
+TARGET = memcache 
 STRUCTURES = structures/memc.c structures/memc_node.c structures/memc_queue.c structures/memc_table.c 
 SERVER = Server/server.c Server/text.c Server/manage_clients.c Server/comunicate.c Server/binary.c Server/epoll.c Server/sock.c 
 MAIN = main
