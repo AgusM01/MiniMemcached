@@ -45,7 +45,7 @@ proc_incha(S, N) ->
     end.
 
 pedidos(S, P, 0, N) ->
-    memcache:put(S, {P, 0, ok}, 0),
+    memcache:put(S, {P, 0, ok}, <<0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0>>),
     memcache:get(S, {P, N, ok}),
     memcache:del(S, {P, N, ok}),
     memcache:put(S, {0, ok}, 0),
@@ -53,7 +53,7 @@ pedidos(S, P, 0, N) ->
     memcache:del(S, {N, ok});
 
 pedidos(S, P, M, N) ->
-    memcache:put(S, {P, M, ok}, 0),
+    memcache:put(S, {P, M, ok}, <<0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0>>),
     memcache:get(S, {P, M - 1, ok}),
     memcache:del(S, {P, M - 1, ok}),
     memcache:put(S, {M, ok}, 0),

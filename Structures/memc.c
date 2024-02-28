@@ -320,8 +320,9 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
             ls_lock(mem->evic, mem->evic_mutex);
 
             memcpy(*data_buff, temp->data_buff, len);
+            //Establece el caracter nulo en caso de que sea modo texto
             if (md == TEXTO) 
-                ((char**)data_buff)[0][len]  = 0;
+                ((char**)data_buff)[0][len]  = '\0';
 
             assert(!sem_wait(mem->queue_mutex));
             //Agregamos el nodo al principio de la queue
