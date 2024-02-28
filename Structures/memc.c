@@ -141,10 +141,10 @@ int memc_eviction(memc_t mem) {
 
         tab_index = mem->hash(tbd->key_buff,tbd->key_len) % mem->buckets;
 
-        node_free(tbd);
+       if (temp == mem->tab[tab_index])
+        mem->tab[tab_index] = temp->arrows[1];
 
-        if (tbd == mem->tab[tab_index])
-            mem->tab[tab_index] = NULL;
+        node_free(tbd);
 
         // printf("tbd : %p.\n", tbd);
 
@@ -371,6 +371,11 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
     //Desconectamos de las estructuras y liberamos
     stat_dec(mem->keys);
 
+   
+   if (temp == mem->tab[tab_index])
+        mem->tab[tab_index] = temp->arrows[1];
+
+
     //Encontramos el Nodo.
     node_discc(HASH ,temp);
     assert(!sem_wait(mem->queue_mutex));
@@ -378,9 +383,8 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
     assert(!sem_post(mem->queue_mutex));
     node_free(temp);
 
-    if (temp == mem->tab[tab_index])
-        mem->tab[tab_index] = NULL;
-
+ 
+   
     assert(!sem_post(mem->tab_shield[shield_index]));
 
     //LightSwitch Off -> Both
