@@ -187,9 +187,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     
     }
     if (command == 3){
-
-        stats = memc_stats(e_m_struct->mem);
-        len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
+        memc_stats(e_m_struct->mem, &stats);
+        len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats.puts, stats.dels, stats.gets, stats.keys);
         assert(len_stat_buf > 0);
         snd = writen(ptr->fd, stat_buf, len_stat_buf);
         if (snd == -1)
@@ -320,8 +319,8 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     /*Checkeo si es STATS*/
     if ((int)ptr_bin->commands[0] == 21){
         command = 3;
-        stats = memc_stats(e_m_struct->mem);
-        len_stat_buf = sprintf(stat_buf,"PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats->puts, stats->dels, stats->gets, stats->keys);
+        memc_stats(e_m_struct->mem, &stats);
+        len_stat_buf = sprintf(stat_buf,"PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats.puts, stats.dels, stats.gets, stats.keys);
 
         len = htonl(len_stat_buf);
         //int_to_binary(len_stat_buf, (void*)&len);
