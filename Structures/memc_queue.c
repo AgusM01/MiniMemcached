@@ -1,4 +1,5 @@
 #include "memc_node.h"
+#include <assert.h>
 #include <stdio.h>
 #include "memc_queue.h"
 #include <complex.h>
@@ -46,14 +47,18 @@ void queue_addmru(queue_t *queue, node_t *node) {
   if (node == queue->mru)
     return;
 
-  node_discc(QUEUE, node);
-  node_addhd(QUEUE, node, queue->mru);
+  //node_discc(QUEUE, node);
+  assert(node_addhd(QUEUE, node, queue->mru) != -1);
   queue->mru = node;
 }
 
 /* Tested */
-void queue_delnode(node_t *node) {
- node_discc(QUEUE, node); 
+void queue_delnode(queue_t* queue, node_t *node) {
+  if (queue->lru == node)
+    queue->lru = node_arrow(node, QUEUE, LEFT);
+  if (queue->mru == node)
+    queue->mru = node_arrow(node, QUEUE, RIGHT);
+  node_discc(QUEUE, node); 
 }
 
 /* Tested */
@@ -62,13 +67,7 @@ node_t* queue_dqlru(queue_t* queue) {
     return NULL;
 
   node_t* temp = queue->lru;
-
-  if (queue->lru == queue->mru) {
-    queue->lru = queue->mru = NULL;  
-  } else {
-    queue->lru = node_arrow(temp, QUEUE, LEFT); 
-    node_discc(QUEUE, temp);
-  }
+  queue_delnode(queue, queue->lru);
 
   return temp;
 }

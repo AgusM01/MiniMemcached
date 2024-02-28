@@ -20,12 +20,12 @@ unsigned hash(char* wrd){
 size_t limit_mem(size_t bytes) {
 	struct rlimit rlm;
 	int ret = 0;
-	getrlimit(RLIMIT_AS, &rlm);
+	getrlimit(RLIMIT_DATA, &rlm);
 	if ( bytes <= rlm.rlim_max ) {
 		rlm.rlim_cur = bytes;
 	} else {
 		rlm.rlim_cur = rlm.rlim_max;
 	}
-	ret = setrlimit(RLIMIT_AS, &rlm);
+	ret = setrlimit(RLIMIT_DATA, &rlm);
 	return ret;
  }

@@ -56,7 +56,7 @@ struct Stats {
   size_t keys;
 };
 
-typedef struct Stats* stats_t;
+typedef struct Stats stats_t;
 
 typedef struct MemCache* memc_t;
 
@@ -97,7 +97,7 @@ int memc_del(
     mod_t md
     );
 
-stats_t memc_stats(memc_t m);
+void memc_stats(memc_t m, stats_t* st);
 
 void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea);
 

@@ -99,8 +99,10 @@ void node_set(
   newnode->key_buff = key;
   newnode->key_len = len_key;
   newnode->mode = md;
+
   for(int i = 0; i < 4 ; i++) 
     newnode->arrows[i] = NULL;
+
 }
 
 //Lock para requerir memoria
@@ -112,8 +114,8 @@ void memc_lock(memc_t mem) {
 }
 
 void memc_unlock(memc_t mem) {
-    assert(!sem_post(mem->turnstile));
     assert(!sem_post(mem->evic_mutex));
+    assert(!sem_post(mem->turnstile));
 }
 
 //TODO -> testear
@@ -137,12 +139,11 @@ int memc_eviction(memc_t mem) {
         memory += sizeof(node_t) + tbd->data_len + tbd->key_len;
         // printf("memory : %ld.\n", memory);
         printf("tbd : %p.\n", tbd);
-        node_discc(HASH, tbd);
-
+        //Del node hash
         tab_index = mem->hash(tbd->key_buff,tbd->key_len) % mem->buckets;
-
-       if (temp == mem->tab[tab_index])
-        mem->tab[tab_index] = temp->arrows[1];
+        if (tbd == mem->tab[tab_index])
+            mem->tab[tab_index] = node_arrow(tbd, HASH, LEFT);
+        node_discc(HASH, tbd);
 
         node_free(tbd);
 
@@ -201,7 +202,6 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
             exit(-1);
         }
     }
-    
 
     return ret;
 }
@@ -265,7 +265,7 @@ int memc_put(
     
     assert(!sem_wait(mem->queue_mutex));
     if (search == 0) // Hay un nodo ya existente en la Queue
-        node_discc(QUEUE, temp);
+        queue_delnode(mem->queue, temp);
     queue_addmru(mem->queue, temp);
     assert(!sem_post(mem->queue_mutex));
 
@@ -281,7 +281,6 @@ int memc_put(
 }
 
 int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t md) {
-
 
     //Turnstile
     assert(!sem_wait(mem->turnstile));
@@ -309,7 +308,7 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
             assert(!sem_wait(mem->queue_mutex));
             //Retiramos el nodo de la Queue para que no
             //sea eliminado en el desalojo.
-            node_discc(QUEUE, temp); 
+            queue_delnode(mem->queue, temp);
             assert(!sem_post(mem->queue_mutex));
 
             len = temp->data_len;
@@ -333,7 +332,6 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
         }
     } 
 
-
     assert(!sem_post(mem->tab_shield[shield_index]));
 
     ls_unlock(mem->evic, mem->evic_mutex);
@@ -342,7 +340,6 @@ int memc_get(memc_t mem, void *key, unsigned key_len, void **data_buff, mode_t m
 
     return len;
 }
-
 
 int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
 
@@ -367,27 +364,23 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
         return -1;
     }
 
+    //Encontramos el Nodo.
+    stat_dec(mem->keys);
+   
+    //Corregimos el primer nodo del índice en la tabla
+    if (temp == mem->tab[tab_index])
+        mem->tab[tab_index] = node_arrow(temp, HASH, LEFT);
 
     //Desconectamos de las estructuras y liberamos
-    stat_dec(mem->keys);
-
-   
-   if (temp == mem->tab[tab_index])
-        mem->tab[tab_index] = temp->arrows[1];
-
-
-    //Encontramos el Nodo.
     node_discc(HASH ,temp);
     assert(!sem_wait(mem->queue_mutex));
-    node_discc(QUEUE ,temp);
+    queue_delnode(mem->queue, temp);
     assert(!sem_post(mem->queue_mutex));
     node_free(temp);
-
- 
    
     assert(!sem_post(mem->tab_shield[shield_index]));
 
-    //LightSwitch Off -> Both
+    //LightSwitch Off
     ls_unlock(mem->evic, mem->evic_mutex);
 
     stat_inc(mem->dels);
@@ -396,20 +389,10 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
 }
 
 //Xd -> Cambiar la onda, tal vez con el buffer ya armado.
-stats_t memc_stats(memc_t mem) {
-    stats_t st = memc_alloc(mem, sizeof(struct Stats), MALLOC, NULL);
-    stat_lock(mem->gets);
-    stat_lock(mem->puts);
-    stat_lock(mem->dels);
-    stat_lock(mem->keys);
+void memc_stats(memc_t mem, stats_t* st) {
     st->gets = stat_get(mem->gets);
     st->puts = stat_get(mem->puts);
     st->dels = stat_get(mem->dels);
     st->keys = stat_get(mem->keys);
-    stat_unlock(mem->gets);
-    stat_unlock(mem->puts);
-    stat_unlock(mem->dels);
-    stat_unlock(mem->keys);
-    return st;
 }
 
