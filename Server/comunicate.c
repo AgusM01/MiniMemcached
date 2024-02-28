@@ -7,7 +7,6 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <errno.h>
-#include "server.h"
 #include "comunicate.h"
 
 #define MAX_CHAR 2048
@@ -37,7 +36,8 @@ int recv_mem(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, 
     ptr = CAST_DATA_PTR;
 
     rcv = recv(ptr->fd, buf, len, flags);
-    perror("Recieve 1");
+    if (!rcv) 
+        perror("Recieve 1");
 
     if (rcv <= 0){
             if(rcv != -1 || (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOMEM))            
@@ -50,7 +50,8 @@ int recv_mem(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, 
         memc_eviction(e_m_struct->mem);
         errno = 0;
         rcv = recv(ptr->fd, buf, len, flags);
-        perror("Recieve 2");
+        if (!rcv)
+            perror("Recieve 2");
         if (rcv <= 0){
             if(rcv != -1 || (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOMEM))            
                 return -1;

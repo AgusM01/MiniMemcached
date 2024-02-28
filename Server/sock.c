@@ -8,9 +8,9 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include "server.h"
 #include "epoll.h"
 #include "sock.h"
+#include <assert.h>
 
 #define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
 
@@ -19,7 +19,8 @@
 void sock_creation(int* sockfd, int port_num){
     //Ver lectura no bloqueante 
     *sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    perror("sock_creation");
+    if (sockfd == NULL)
+        perror("sock_creation");
 
     /*Instancia la estructura*/
     struct sockaddr_in sa;
@@ -28,11 +29,11 @@ void sock_creation(int* sockfd, int port_num){
     sa.sin_addr.s_addr = htonl(INADDR_ANY);
 
     /*Bindea el socket al puerto a utilizar y les asigna las características requeridas*/
-    bind(*sockfd, (struct sockaddr*) &sa, sizeof(sa));
+    assert(!bind(*sockfd, (struct sockaddr*) &sa, sizeof(sa)));
 
     // Ponemos el socket en escucha.
-    listen(*sockfd, SOMAXCONN);
-    perror("sock_listen");
+    if ( -1 ==listen(*sockfd, SOMAXCONN))
+        perror("sock_listen");
     return;
 }
 

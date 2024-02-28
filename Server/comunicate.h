@@ -1,6 +1,8 @@
 #ifndef __COMUNICATE_H__
 #define __COMUNICATE_H__
 
+#include "manage_clients.h"
+#include "epoll.h"
 #include <pthread.h>
 
 int writen  (int fd, 
@@ -15,4 +17,4 @@ int recv_mem    (struct args_epoll_monitor* e_m_struct,
 
 int my_length(char* buf);
 
-#endif // !__COMUNICATE_H__
+#endif // __COMUNICATE_H__

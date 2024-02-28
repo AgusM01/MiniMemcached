@@ -11,7 +11,6 @@
 #include <math.h>
 #include <sys/signal.h>
 #include "manage_clients.h"
-#include "server.h"
 #include "comunicate.h"
 #include "binary.h"
 #include "epoll.h"

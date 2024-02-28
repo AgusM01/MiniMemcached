@@ -4,9 +4,8 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#include "server.h"
 #include "text.h"
-#include "../structures/utils.h"
+#include "../Structures/utils.h"
 #include "binary.h"
 #include "epoll.h"
 #include "sock.h"
@@ -23,7 +22,8 @@
 void epoll_initiate(int* epollfd){
 
     *epollfd = epoll_create(1);
-    perror("epoll_create");
+    if (!*epollfd)
+        perror("epoll_create : epoll.c 26");
     
     return;
 }
@@ -51,6 +51,8 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
         d_ptr->command = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
         d_ptr->missing = 0;
         d_ptr->readed = 0;
+        d_ptr->to_complete = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
+        d_ptr->pos_to_complete = 0;
     }
     if (mode == 1){
         struct data_ptr_binary* binary = memc_alloc(mem, sizeof(struct data_ptr_binary), MALLOC, NULL);
@@ -71,8 +73,8 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
 
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; //NO USAR EDGE TRIGGERED YA QUE SI UN HILO MANDA MUCHISIMO NO VA A AVISAR PENSAR CHARLADO CON NERI ESCUCHAR AUDIO ZOE
     
-    fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK));
-    perror("fcntl_ret");
+    if ( -1 == fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK)))
+        perror("fcntl_ret epoll.c");
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
     return;

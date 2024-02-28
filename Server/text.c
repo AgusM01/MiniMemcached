@@ -6,9 +6,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include "server.h"
 #include "text.h"
-#include "../structures/utils.h"
+#include "../Structures/utils.h"
 #include "manage_clients.h"
 #include "comunicate.h"
 #include "binary.h"
@@ -106,7 +105,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             //    return;
             //}
             snd = writen(ptr->fd, &err, strlen(err));
-            perror("error_send");
+            if (snd == -1)
+                perror("error_send");
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 return -1;
@@ -137,7 +137,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
                 //}
                 
                 snd = writen(ptr->fd, &err, strlen(err));
-                perror("error_send");
+                if (snd == -1)
+                    perror("error_send");
                 if (snd != 0){
                     quit_epoll(e_m_struct, evlist);
                     return -1;
@@ -170,7 +171,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
                 ptr->command[ptr->readed] = '\0';
             else{
                 snd = writen(ptr->fd, &err, strlen(err));
-                perror("error_send");
+                if (snd == -1) 
+                    perror("error_send");
                 if (snd != 0){
                     quit_epoll(e_m_struct, evlist);
                     return -1;
@@ -256,9 +258,10 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             free(token_commands[0]);
         free(token_commands);
     }
-   else{
+    else {
         snd = writen(ptr->fd, &einval, strlen(einval));
-        perror("error_send");
+        if (snd == -1) 
+            perror("error_send");
         if (snd != 0){
             quit_epoll(e_m_struct, evlist);
             return -1;
@@ -305,4 +308,121 @@ char** text_parser(char* text, int* cant_comm, char* delimiter, memc_t mem){
     /*La idea es recibir una linea en text y devolver un array de arrays con cada comando.*/
     /*Usar strtok utilizando " " como delimitador*/
     return res;
+}
+
+int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
+
+    int rv = 0;
+    int snd = 0;
+    char err[6] = "EBIG\n";
+    char einval[8] = "EINVAL\n";
+    char comm[MAX_CHAR + 1];
+    int cant_comm;
+
+    struct data_ptr* ptr;
+    ptr = CAST_DATA_PTR;
+
+    /*No hay ningun comando*/
+    if (ptr->cant_comm_ptr == 0){
+
+        rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
+        if (rv <= 0){
+                if (rv == -1){
+                    quit_epoll(e_m_struct, evlist);
+                    return -1; //No volverlo a meter al epoll
+                }
+                return 0; //Volverlo a meter al epoll
+        }
+
+        /*Busco el primer comando*/
+        for (int i = 0; i < rv; i++){
+            if(ptr->command[i] == '\n'){
+                ptr->actual_pos_arr = i;
+                ptr->cant_comm_ptr += 1;
+                i = rv;
+            }
+        }
+
+        /*Leí 2048 sin \n*/
+        if (ptr->cant_comm_ptr == 0 && 
+            rv >= MAX_CHAR){
+            snd = writen(ptr->fd, &err, strlen(err));
+            if (snd == -1)
+                perror("error_send");
+            if (snd != 0){
+                quit_epoll(e_m_struct, evlist);
+                return -1;
+            }
+            return 0;
+        }
+
+        /*No leí \n, falta que llegue el comando entero*/
+        if (ptr->cant_comm_ptr == 0 && rv < MAX_CHAR){
+            for (int i = 0; i < rv; i++){
+                ptr->to_complete[i] = ptr->command[ptr->actual_pos_arr + i];
+            }
+            ptr->missing = 1;
+            return 0;
+        }
+
+    }
+    
+
+    /*Lo que leí forma parte de uno que vino antes partido*/
+    if (ptr->missing == 1){
+
+        int len = strlen(ptr->to_complete);
+        /*El comando total es demasiado largo*/
+        if (ptr->actual_pos_arr + len >= 2048){
+            snd = writen(ptr->fd, &err, strlen(err));
+            if (snd == -1)
+                perror("error_send");
+            if (snd != 0){
+                quit_epoll(e_m_struct, evlist);
+                return -1;
+            }
+            return 0;
+        }
+        int tot = max(len, ptr->actual_pos_arr);
+        int bye;
+        for (int i = 0; i < tot; i++){
+            if (i < len)
+                comm[i] = ptr->to_complete[i];
+            if (i < ptr->actual_pos_arr)
+                comm[len + i] = ptr->command[i];
+        }
+        comm[tot] = '\0';
+        //char** token_commands;
+        //token_commands = text_parser(comm, &cant_comm, DELIMITER, e_m_struct->mem);
+
+        //if (token_commands != NULL){
+        //    bye = manage_txt_client(e_m_struct, evlist, token_commands, cant_comm);
+        //    free(token_commands);
+        //    ptr->cant_comm_ptr -= 1;
+        //    ptr->missing = 0;
+        //    return bye;
+        //}
+        //else{
+        //    snd = writen(ptr->fd, &einval, strlen(einval));
+        //    if (snd == -1) 
+        //        perror("error_send");
+        //    if (snd != 0){
+        //        quit_epoll(e_m_struct, evlist);
+        //        return -1;
+        //    }
+        //    return 0;
+        //}      
+    }
+    else {
+
+        for (int i = 0; i <= ptr->actual_pos_arr; i++)
+            comm[i] = ptr->command[i];
+        comm[ptr->actual_pos_arr + 1] = '\0';
+    }
+
+
+    
+
+
+
 }

@@ -88,7 +88,7 @@ node_t* node_arrow(node_t* node, int hq, dir_t dir) {
 
 /*Tested*/
 int node_addhd(int hq, node_t* node, node_t* head) {
-  if (head->arrows[hq + LEFT])
+  if ((head == NULL) || head->arrows[hq + LEFT])
     return -1;
 
   head->arrows[hq + LEFT] = node;
