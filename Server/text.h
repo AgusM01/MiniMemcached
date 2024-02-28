@@ -13,4 +13,6 @@ char** text_parser(char* text, int* cant_comm, char* delimiter, memc_t mem);
 
 int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
 
+int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
+
 #endif /*__TEXT_H__*/

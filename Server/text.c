@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 #include "text.h"
 #include "../Structures/utils.h"
 #include "manage_clients.h"
@@ -318,34 +319,45 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     char einval[8] = "EINVAL\n";
     char comm[MAX_CHAR + 1];
     int cant_comm;
+    int bye;
 
     struct data_ptr* ptr;
     ptr = CAST_DATA_PTR;
 
-    /*No hay ningun comando*/
-    if (ptr->cant_comm_ptr == 0){
+    /*La idea es: leer 2048, responder todos los pedidos, si hay alguno cortado, meterlo al epoll y esperar que llegue completo.*/
 
-        rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
-        if (rv <= 0){
-                if (rv == -1){
-                    quit_epoll(e_m_struct, evlist);
-                    return -1; //No volverlo a meter al epoll
-                }
-                return 0; //Volverlo a meter al epoll
+    /*Recibo lo que me mandó*/
+    rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
+    if (rv <= 0){
+        if (rv == -1){
+            quit_epoll(e_m_struct, evlist);
+            return -1; //No volverlo a meter al epoll
         }
+        return 0; //Volverlo a meter al epoll
+    }
 
-        /*Busco el primer comando*/
+    /*Debo ir leyendo los comandos y respondiendolos*/
+
+    while (ptr->actual_pos_arr < rv){
+
         for (int i = 0; i < rv; i++){
-            if(ptr->command[i] == '\n'){
-                ptr->actual_pos_arr = i;
-                ptr->cant_comm_ptr += 1;
+
+            /*Si cae acá significa que no encontré \n en todo lo que leí y me pasé*/
+            if (ptr->actual_pos_arr + i >= rv){
+                i = rv;
+            }
+            if (ptr->command[ptr->actual_pos_arr + i] == '\n'){
+                ptr->actual_pos_arr += (i + 1);
+                ptr->is_command = 1;
                 i = rv;
             }
         }
 
         /*Leí 2048 sin \n*/
-        if (ptr->cant_comm_ptr == 0 && 
+        /*Sea un comando cortado, o no, es erróneo.*/
+        if (ptr->is_command == 0 && 
             rv >= MAX_CHAR){
+            ptr->missing = 0;
             snd = writen(ptr->fd, &err, strlen(err));
             if (snd == -1)
                 perror("error_send");
@@ -357,72 +369,131 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
         }
 
         /*No leí \n, falta que llegue el comando entero*/
-        if (ptr->cant_comm_ptr == 0 && rv < MAX_CHAR){
-            for (int i = 0; i < rv; i++){
-                ptr->to_complete[i] = ptr->command[ptr->actual_pos_arr + i];
+        /*En este caso lo guardo en el buffer iterno que guarda el comando cortado.*/
+        if (ptr->is_command == 0 && rv < MAX_CHAR){
+
+            /*El comando ya es demasiado largo*/
+            if (ptr->pos_to_complete + rv >= MAX_CHAR){
+                
+                ptr->missing = 0;
+                ptr->is_command = 0;
+                ptr->pos_to_complete = 0;
+
+                snd = writen(ptr->fd, &err, strlen(err));
+                if (snd == -1)
+                    perror("error_send");
+                if (snd != 0){
+                    quit_epoll(e_m_struct, evlist);
+                    return -1;
+                }
+
             }
-            ptr->missing = 1;
-            return 0;
-        }
-
-    }
-    
-
-    /*Lo que leí forma parte de uno que vino antes partido*/
-    if (ptr->missing == 1){
-
-        int len = strlen(ptr->to_complete);
-        /*El comando total es demasiado largo*/
-        if (ptr->actual_pos_arr + len >= 2048){
-            snd = writen(ptr->fd, &err, strlen(err));
-            if (snd == -1)
-                perror("error_send");
-            if (snd != 0){
-                quit_epoll(e_m_struct, evlist);
-                return -1;
+            else{
+                int i = 0;
+                for (; (ptr->actual_pos_arr + i) <= rv; i++){
+                    ptr->to_complete[ptr->pos_to_complete + i] = ptr->command[ptr->actual_pos_arr + i];
+                }
+                ptr->pos_to_complete += i;
+                ptr->missing = 1;
+                ptr->is_command = 0;
+                ptr->actual_pos_arr = rv; /*Corto el while*/
             }
-            return 0;
         }
-        int tot = max(len, ptr->actual_pos_arr);
-        int bye;
-        for (int i = 0; i < tot; i++){
-            if (i < len)
-                comm[i] = ptr->to_complete[i];
-            if (i < ptr->actual_pos_arr)
-                comm[len + i] = ptr->command[i];
+
+
+        
+        if (ptr->is_command == 1){
+            
+            /*Lo que leí forma parte de uno que vino antes partido*/
+            /*Entonces debo unir las partes del comando y mandarlo al parser.*/
+            if (ptr->missing == 1){
+
+                int len = strlen(ptr->to_complete);
+                
+                /*El comando total es demasiado largo*/
+                if (ptr->actual_pos_arr + len >= 2048){
+                    ptr->missing = 0;
+                    ptr->is_command = 0;
+                    ptr->pos_to_complete = 0;
+
+                    snd = writen(ptr->fd, &err, strlen(err));
+                    if (snd == -1)
+                        perror("error_send");
+                    if (snd != 0){
+                        quit_epoll(e_m_struct, evlist);
+                        return -1;
+                    }
+                }
+                else {
+
+                    int tot = fmax(len, ptr->actual_pos_arr);
+
+                    for (int i = 0; i < tot; i++){
+                        if (i < len)
+                            comm[i] = ptr->to_complete[i];
+                        if (i < ptr->actual_pos_arr)
+                            comm[len + i] = ptr->command[i];
+                    }
+                    comm[len + tot] = '\0';
+                }
+            }
+
+            /*Lo que leí es nuevo y es un comando normal.*/
+            /*Lo copio al buffer temporal y lo mando al parser.*/
+            if (ptr->missing == 0 ){
+
+                
+                int c = 0;
+
+                for (int i = ptr->prev_pos_arr; i < ptr->actual_pos_arr; i++){
+                    comm[c] = ptr->command[i];
+                    c++;
+                }
+                comm[c + 1] = '\0';
+                ptr->prev_pos_arr = ptr->actual_pos_arr;
+            }
+
+            char** token_commands;
+            token_commands = text_parser(comm, &cant_comm, DELIMITER, e_m_struct->mem);
+
+            if (token_commands != NULL){
+                bye = manage_txt_client(e_m_struct, evlist, token_commands, cant_comm);
+                free(token_commands);
+                ptr->cant_comm_ptr -= 1;
+                ptr->missing = 0;
+                ptr->is_command = 0;
+                ptr->prev_pos_arr = ptr->actual_pos_arr;
+                if (bye != 0)
+                    return bye;
+            }
+            else{
+                snd = writen(ptr->fd, &einval, strlen(einval));
+                if (snd == -1) 
+                    perror("error_send");
+                if (snd != 0){
+                    quit_epoll(e_m_struct, evlist);
+                    return -1;
+                }
+                ptr->missing = 0;
+            }
         }
-        comm[tot] = '\0';
-        //char** token_commands;
-        //token_commands = text_parser(comm, &cant_comm, DELIMITER, e_m_struct->mem);
 
-        //if (token_commands != NULL){
-        //    bye = manage_txt_client(e_m_struct, evlist, token_commands, cant_comm);
-        //    free(token_commands);
-        //    ptr->cant_comm_ptr -= 1;
-        //    ptr->missing = 0;
-        //    return bye;
-        //}
-        //else{
-        //    snd = writen(ptr->fd, &einval, strlen(einval));
-        //    if (snd == -1) 
-        //        perror("error_send");
-        //    if (snd != 0){
-        //        quit_epoll(e_m_struct, evlist);
-        //        return -1;
-        //    }
-        //    return 0;
-        //}      
-    }
-    else {
-
-        for (int i = 0; i <= ptr->actual_pos_arr; i++)
-            comm[i] = ptr->command[i];
-        comm[ptr->actual_pos_arr + 1] = '\0';
+        /*Reiniciamos la bandera que es un comando*/
+        ptr->is_command = 0;
+        ptr->prev_pos_arr = ptr->actual_pos_arr;
     }
 
+    ptr->actual_pos_arr = 0;
+    ptr->prev_pos_arr = 0;
+    ptr->is_command = 0;
+    return 0;
 
     
 
 
 
 }
+
+/*PUT agus merino\nGET agus\nPUT*/
+/*0123456789     15            27*/                                 
+/*                */

@@ -53,6 +53,8 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
         d_ptr->readed = 0;
         d_ptr->to_complete = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
         d_ptr->pos_to_complete = 0;
+        d_ptr->is_command = 0;
+        d_ptr->prev_pos_arr = 0;
     }
     if (mode == 1){
         struct data_ptr_binary* binary = memc_alloc(mem, sizeof(struct data_ptr_binary), MALLOC, NULL);
@@ -95,6 +97,7 @@ void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
         close(ptr->fd);
         free(ptr->command);
         free(ptr->delimit_pos);
+        free(ptr->to_complete);
     }
     else{
         close(ptr->fd);
@@ -171,7 +174,8 @@ void* epoll_monitor(void* args){
                     /*Este cliente no es nuevo por lo que nos hará consultas.*/
                     /*Hacer un if para diferenciar entre cliente de texto y binario mediante el data.u32*/  
 
-                    resp = text_consume(e_m_struct, evlist);
+                    //resp = text_consume(e_m_struct, evlist);
+                    resp = text2(e_m_struct, evlist);
 
                 }
                 else{

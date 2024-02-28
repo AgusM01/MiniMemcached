@@ -27,6 +27,8 @@ struct data_ptr {
     int missing;
     char* to_complete;
     int pos_to_complete;
+    int is_command;
+    int prev_pos_arr;
     struct data_ptr_binary* binary;
 };
 
