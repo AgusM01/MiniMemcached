@@ -11,10 +11,9 @@
 #include <string.h>
 #include <errno.h>
 #include <math.h>
-#include "server.h"
-#include "text_parser.h"
-#include "structures/memc.h"
-#include "structures/utils.h"
+#include "../Server/epoll.h"
+#include "../Structures/memc.h"
+#include "../Structures/utils.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -70,13 +69,16 @@ int main(){
     buf[readed] = '\0';
     printf("%s", buf);
 
+    puts("mando primer error");
     send(sock, err, 2049, 0);
     readed = read(sock, &buf, 100);
     buf[readed] = '\0';
     printf("%s", buf);
 
+    puts("mando segundo error 1");
     send(sock, err, 49, 0);
     sleep(5);
+    puts("mando segundo error 2");
     send(sock, err, 2000, 0);
     readed = read(sock, &buf, 100);
     buf[readed] = '\0';
