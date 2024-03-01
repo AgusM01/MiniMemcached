@@ -335,7 +335,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
         }
         return 0; //Volverlo a meter al epoll
     }
-    //printf("recibo: %s\n", ptr->command);
+    printf("recibo: %s\n", ptr->command);
     /*Debo ir leyendo los comandos y respondiendolos*/
 
     while (ptr->actual_pos_arr < rv){
@@ -377,7 +377,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
         /*No leí \n, falta que llegue el comando entero*/
         /*En este caso lo guardo en el buffer iterno que guarda el comando cortado.*/
-        if (ptr->is_command == 0 && rv < MAX_CHAR){
+        if (ptr->is_command == 0){
             //printf("pos to complete: %d\n", ptr->pos_to_complete);
             //printf("suma: %d\n", ptr->pos_to_complete + rv);
             /*El comando ya es demasiado largo*/
@@ -402,7 +402,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 printf("rv: %d\n", rv);
                 
                 int i = 0;
-                for (; i < rv; i++){
+                for (; i < ptr->actual_pos_arr; i++){
                     ptr->to_complete[ptr->pos_to_complete + i] = ptr->command[ptr->actual_pos_arr + i];
                 }
                 puts("Llego");
@@ -503,7 +503,8 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
         }
 
         /*Reiniciamos la bandera que es un comando*/
-        ptr->pos_to_complete = 0;
+        if (!ptr->missing)
+            ptr->pos_to_complete = 0;
         ptr->is_command = 0;
         printf("ACTUALPOS: %d\n", ptr->actual_pos_arr);
         printf("PREVPOS: %d\n", ptr->prev_pos_arr);
