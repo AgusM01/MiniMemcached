@@ -343,19 +343,20 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
         for (int i = 0; i < rv; i++){
 
             /*Si cae acá significa que no encontré \n en todo lo que leí y me pasé*/
-            if (ptr->actual_pos_arr + i >= rv){
-                i = rv;
-            }
-            else{
+            //if (ptr->actual_pos_arr + i >= rv){
+            //    i = rv;
+            //}
+            //else{
                 if (ptr->command[ptr->actual_pos_arr + i] == '\n'){
                     ptr->actual_pos_arr += (i  + 1);
                     ptr->is_command = 1;
                     i = rv;
                 }
-            }
+            //}
         }
 
-
+        printf("is_command: %d\n", ptr->is_command);
+        printf("command[%d]: %c\n", ptr->actual_pos_arr, ptr->command[ptr->actual_pos_arr]);
         printf("actual: %d\n", ptr->actual_pos_arr);
         /*Leí 2048 sin \n*/
         /*Sea un comando cortado, o no, es erróneo.*/
@@ -372,7 +373,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 quit_epoll(e_m_struct, evlist);
                 return -1;
             }
-            //puts("mande big");
+            puts("mande big 1");
             return 0;
         }
 
@@ -384,6 +385,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
             /*El comando ya es demasiado largo*/
             if (ptr->pos_to_complete + rv >= MAX_CHAR){
                 puts("HOLAAAAAAAAAAAAAAAAAA");
+                printf("pos_to_complete: %d\n", ptr->pos_to_complete);
                 ptr->missing = 0;
                 ptr->is_command = 0;
                 ptr->pos_to_complete = 0;
@@ -391,6 +393,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 rv = -1;
                 //ptr->actual_pos_arr = rv; /*-> Corto el while*/
                 puts("voy a cortar el while 1");
+                puts("mande big 2");
                 snd = writen(ptr->fd, &err, strlen(err));
                 if (snd == -1)
                     perror("error_send");
@@ -416,7 +419,8 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 ptr->to_complete[ptr->pos_to_complete + i] = '\0';
                 ptr->pos_to_complete += i;
                 ptr->missing = 1;
-                ptr->actual_pos_arr = rv + 1;
+                rv = -1;
+                //ptr->actual_pos_arr = rv + 1;
                 //ptr->actual_pos_arr = rv; /*Corto el while -> no afecta ya que cuando lea nuevamente lo que falta se actualiza*/
                 puts("voy a cortar el while 2");
             }
@@ -500,6 +504,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                         return bye;
                 }
                 else{
+                    puts("EINVAL");
                     snd = writen(ptr->fd, &einval, strlen(einval));
                     if (snd == -1) 
                         perror("error_send");
@@ -530,13 +535,10 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     ptr->prev_pos_arr = 0;
     ptr->is_command = 0;
     return 0;
-
-    
-
-
-
 }
 
 /*PUT agus merino\nGET agus\nPUT*/
 /*0123456789     15            27*/                                 
 /*                */
+/*agustin merino\0hola brisa\0*/
+/*012345678910*/
