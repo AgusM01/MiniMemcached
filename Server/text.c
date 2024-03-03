@@ -328,7 +328,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     /*Recibo lo que me mandó*/
     rv = recv_mem(e_m_struct, evlist, ptr->command, MAX_CHAR, 0);
     //rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
-    printf("rv after recv: %d\n", rv);
+    //printf("rv after recv: %d\n", rv);
     if (rv <= 0){
         if (rv == -1){
             quit_epoll(e_m_struct, evlist);
@@ -336,11 +336,11 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
         }
         return 0; //Volverlo a meter al epoll
     }
-    printf("recibo: %s\n", ptr->command);
+    //printf("recibo: %s\n", ptr->command);
     /*Debo ir leyendo los comandos y respondiendolos*/
 
     while (rv > 0){
-        printf("RV EN CADA ITERACION: %d\n", rv);
+        //printf("RV EN CADA ITERACION: %d\n", rv);
         for (int i = 0; i < rv; i++){
 
             /*Si cae acá significa que no encontré \n en todo lo que leí y me pasé*/
@@ -356,9 +356,9 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
             //}
         }
 
-        printf("is_command: %d\n", ptr->is_command);
-        printf("command[%d]: %c\n", ptr->actual_pos_arr, ptr->command[ptr->actual_pos_arr]);
-        printf("actual: %d\n", ptr->actual_pos_arr);
+        //printf("is_command: %d\n", ptr->is_command);
+        //printf("command[%d]: %c\n", ptr->actual_pos_arr, ptr->command[ptr->actual_pos_arr]);
+        //printf("actual: %d\n", ptr->actual_pos_arr);
         /*Leí 2048 sin \n*/
         /*Sea un comando cortado, o no, es erróneo.*/
         if (ptr->is_command == 0 && 
@@ -366,7 +366,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
             ptr->missing = 0;
             rv = -1;
             //ptr->actual_pos_arr = rv;
-            puts("que hago aca");
+            //puts("que hago aca");
             snd = writen(ptr->fd, &err, strlen(err));
             if (snd == -1)
                 perror("error_send");
@@ -374,7 +374,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 quit_epoll(e_m_struct, evlist);
                 return -1;
             }
-            puts("mande big 1");
+            //puts("mande big 1");
             return 0;
         }
 
@@ -385,16 +385,16 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
             //printf("suma: %d\n", ptr->pos_to_complete + rv);
             /*El comando ya es demasiado largo*/
             if (ptr->pos_to_complete + rv >= MAX_CHAR){
-                puts("HOLAAAAAAAAAAAAAAAAAA");
-                printf("pos_to_complete: %d\n", ptr->pos_to_complete);
+                //puts("HOLAAAAAAAAAAAAAAAAAA");
+                //printf("pos_to_complete: %d\n", ptr->pos_to_complete);
                 ptr->missing = 0;
                 ptr->is_command = 0;
                 ptr->pos_to_complete = 0;
                 ptr->prev_pos_arr = 0;
                 rv = -1;
                 //ptr->actual_pos_arr = rv; /*-> Corto el while*/
-                puts("voy a cortar el while 1");
-                puts("mande big 2");
+                //puts("voy a cortar el while 1");
+                //puts("mande big 2");
                 snd = writen(ptr->fd, &err, strlen(err));
                 if (snd == -1)
                     perror("error_send");
@@ -405,24 +405,24 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 //puts("mando big 2");
             }
             else{
-                printf("rv: %d\n", rv);
+                //printf("rv: %d\n", rv);
                 
                 int i = 0;
-                printf("PREVIO: %d\n", ptr->prev_pos_arr);
-                printf("ACTUAL: %d\n", ptr->actual_pos_arr);
-                printf("RV LLEGO: %d\n", rv);
-                printf("COMMAND AA: %s\n", &ptr->command[ptr->actual_pos_arr]);
-                printf("RV-ACTUAL: %d\n", (rv - ptr->actual_pos_arr));
+                //printf("PREVIO: %d\n", ptr->prev_pos_arr);
+                //printf("ACTUAL: %d\n", ptr->actual_pos_arr);
+                //printf("RV LLEGO: %d\n", rv);
+                //printf("COMMAND AA: %s\n", &ptr->command[ptr->actual_pos_arr]);
+                //printf("RV-ACTUAL: %d\n", (rv - ptr->actual_pos_arr));
                 for (; i < rv; i++){
-                    printf("ptr->command[%d]: %c\n", (ptr->actual_pos_arr + i), ptr->command[ptr->actual_pos_arr + i]);
+                    //printf("ptr->command[%d]: %c\n", (ptr->actual_pos_arr + i), ptr->command[ptr->actual_pos_arr + i]);
                     ptr->to_complete[ptr->pos_to_complete + i] = ptr->command[ptr->actual_pos_arr + i];
                 }
-                puts("Llego");
+                //puts("Llego");
                 ptr->to_complete[ptr->pos_to_complete + i] = '\0';
                 ptr->pos_to_complete += i;
                 ptr->missing = 1;
                 rv = -1; /*Corto el while*/
-                puts("voy a cortar el while 2");
+                //puts("voy a cortar el while 2");
             }
         }
 
@@ -431,16 +431,16 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
             /*Lo que leí forma parte de uno que vino antes partido*/
             /*Entonces debo unir las partes del comando y mandarlo al parser.*/
             if (ptr->missing == 1){
-                puts("Estoy");
+                //puts("Estoy");
                 int len = strlen(ptr->to_complete);
-                printf("len: %d\n", len);
-                printf("act_pos_arr: %d\n", ptr->actual_pos_arr);
+                //printf("len: %d\n", len);
+                //printf("act_pos_arr: %d\n", ptr->actual_pos_arr);
                 /*El comando total es demasiado largo*/
                 if (ptr->actual_pos_arr + len >= 2048){
                     ptr->missing = 0;
                     rv = -1; /*Corto el while*/
                     cut = 0;
-                    puts("voy a cortar el while 3");
+                    //puts("voy a cortar el while 3");
                     snd = writen(ptr->fd, &err, strlen(err));
                     if (snd == -1)
                         perror("error_send");
@@ -450,7 +450,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                     }
                 }
                 else {
-                    printf("RV: %d\n", rv);
+                    //printf("RV: %d\n", rv);
                     int tot = fmax(len, ptr->actual_pos_arr);
                     int c = 0;
                     //printf("to_complete: %s\n", ptr->to_complete);
@@ -459,11 +459,11 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                     //ptr->command[ptr->actual_pos_arr] = '\n';
                     for (int i = ptr->prev_pos_arr; i < tot; i++){
                         if (c < len){
-                            printf("to_complete[%d]: %c\n", i, ptr->to_complete[i]);
+                            //printf("to_complete[%d]: %c\n", i, ptr->to_complete[i]);
                             comm[c] = ptr->to_complete[c];
                         }
                         if (i < ptr->actual_pos_arr){
-                            printf("command[%d]: %c\n", i, ptr->command[i]);
+                            //printf("command[%d]: %c\n", i, ptr->command[i]);
                             comm[len + c] = ptr->command[i];
                         }
                         c++;
@@ -487,24 +487,24 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                     c++;
                 }
                 comm[c] = '\0';
-                puts("lo formo normal");
+                //puts("lo formo normal");
             }
             
-            printf("comm: %s\n", comm);
+            //printf("comm: %s\n", comm);
             if (cut){
                 char** token_commands;
                 token_commands = text_parser(comm, &cant_comm, DELIMITER, e_m_struct->mem);
                 if (token_commands != NULL){
                     bye = manage_txt_client(e_m_struct, evlist, token_commands, cant_comm);
                     free(token_commands);
-                    printf("MISSING: %d\n", ptr->missing);
+                    //printf("MISSING: %d\n", ptr->missing);
                     ptr->missing = 0;
                     //rv -= (ptr->actual_pos_arr - ptr->prev_pos_arr);
                     if (bye != 0)
                         return bye;
                 }
                 else{
-                    puts("EINVAL");
+                    //puts("EINVAL");
                     snd = writen(ptr->fd, &einval, strlen(einval));
                     if (snd == -1) 
                         perror("error_send");

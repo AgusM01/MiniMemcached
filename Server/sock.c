@@ -70,7 +70,9 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
         } 
     }
 
+    /*Vuelve a meter al fd que acepta clientes*/
     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, ptr->fd, &ev);
+    /*Mete al fd nuevo*/
     epoll_add(client_sockfd, e_m_struct->epollfd, ptr->text_or_binary, e_m_struct->mem);
 
     return;

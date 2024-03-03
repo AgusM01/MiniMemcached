@@ -57,6 +57,7 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
         d_ptr->prev_pos_arr = 0;
     }
     if (mode == 1){
+        puts("agrego binario");
         struct data_ptr_binary* binary = memc_alloc(mem, sizeof(struct data_ptr_binary), MALLOC, NULL);
         d_ptr->binary = binary;
         d_ptr->binary->binary_to_read_commands = 5;
@@ -142,7 +143,7 @@ void* epoll_monitor(void* args){
         struct data_ptr* ptr;
         ptr = CAST_DATA_PTR;
 
-        //printf("Atiendo a fd: %d, soy hilo: %ld\n", ptr->fd, pthread_self());
+        printf("Atiendo a fd: %d\n", ptr->fd);
         //printf("FLAGS: %d\n", (int)e_m_struct->evlist->events);
 
         /*Tenemos un fd disponible para lectura.*/
