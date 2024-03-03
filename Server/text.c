@@ -538,6 +538,3 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
 /*PUT agus merino\nGET agus\nPUT*/
 /*0123456789     15            27*/                                 
-/*                */
-/*agustin merino\0hola brisa\0*/
-/*012345678910*/
