@@ -326,7 +326,8 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     /*La idea es: leer 2048, responder todos los pedidos, si hay alguno cortado, meterlo al epoll y esperar que llegue completo.*/
 
     /*Recibo lo que me mandó*/
-    rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
+    rv = recv_mem(e_m_struct, evlist, ptr->command, MAX_CHAR, 0);
+    //rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
     printf("rv after recv: %d\n", rv);
     if (rv <= 0){
         if (rv == -1){
