@@ -407,6 +407,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 printf("rv: %d\n", rv);
                 
                 int i = 0;
+                printf("PREVIO: %d\n", ptr->prev_pos_arr);
                 printf("ACTUAL: %d\n", ptr->actual_pos_arr);
                 printf("RV LLEGO: %d\n", rv);
                 printf("COMMAND AA: %s\n", &ptr->command[ptr->actual_pos_arr]);
@@ -419,9 +420,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                 ptr->to_complete[ptr->pos_to_complete + i] = '\0';
                 ptr->pos_to_complete += i;
                 ptr->missing = 1;
-                rv = -1;
-                //ptr->actual_pos_arr = rv + 1;
-                //ptr->actual_pos_arr = rv; /*Corto el while -> no afecta ya que cuando lea nuevamente lo que falta se actualiza*/
+                rv = -1; /*Corto el while*/
                 puts("voy a cortar el while 2");
             }
         }
@@ -453,10 +452,10 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                     printf("RV: %d\n", rv);
                     int tot = fmax(len, ptr->actual_pos_arr);
                     int c = 0;
-                    printf("to_complete: %s\n", ptr->to_complete);
-                    ptr->command[ptr->actual_pos_arr] = '\0';
-                    printf("command: %s\n", ptr->command);
-                    ptr->command[ptr->actual_pos_arr] = '\n';
+                    //printf("to_complete: %s\n", ptr->to_complete);
+                    //ptr->command[ptr->actual_pos_arr] = '\0';
+                    //printf("command: %s\n", ptr->command);
+                    //ptr->command[ptr->actual_pos_arr] = '\n';
                     for (int i = ptr->prev_pos_arr; i < tot; i++){
                         if (c < len){
                             printf("to_complete[%d]: %c\n", i, ptr->to_complete[i]);
