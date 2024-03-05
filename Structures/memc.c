@@ -141,8 +141,10 @@ int memc_eviction(memc_t mem) {
         printf("tbd : %p.\n", tbd);
         //Del node hash
         tab_index = mem->hash(tbd->key_buff,tbd->key_len) % mem->buckets;
-        if (tbd == mem->tab[tab_index])
-            mem->tab[tab_index] = node_arrow(tbd, HASH, LEFT);
+        if (tbd == mem->tab[tab_index]){
+            puts("apunto a otro");
+            mem->tab[tab_index] = node_arrow(tbd, HASH, RIGHT);
+        }
         node_discc(HASH, tbd);
 
         node_free(tbd);
@@ -181,8 +183,10 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
         while ((ret == NULL) && flag) { // ret == NULL
             // REGIÓN CRÍTICA 
             //puts("Holanda");
-            if(memc_eviction(mem) == -1)
+            if(memc_eviction(mem) == -1){
+                puts("me dio -1");
                 flag = 0;
+            }
             
             switch (fun) {
                 case MALLOC:
@@ -198,6 +202,7 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
         }
 
         if(ret == NULL) {
+            printf("KEYS: %d\n", *(int*)mem->keys);
             perror("memc_eviction");
             exit(-1);
         }
@@ -369,7 +374,7 @@ int memc_del(memc_t mem, void *key, unsigned key_len, mod_t md) {
    
     //Corregimos el primer nodo del índice en la tabla
     if (temp == mem->tab[tab_index])
-        mem->tab[tab_index] = node_arrow(temp, HASH, LEFT);
+        mem->tab[tab_index] = node_arrow(temp, HASH, RIGHT);
 
     //Desconectamos de las estructuras y liberamos
     node_discc(HASH ,temp);

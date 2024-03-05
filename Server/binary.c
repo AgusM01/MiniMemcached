@@ -30,7 +30,8 @@ int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     /*En la primera vez consume el primer comando (PUT/GET/DEL/...)*/
     if (ptr_bin->binary_to_read_commands == 5){
 
-        resp = recv_mem(e_m_struct, evlist, ptr_bin->commands, 1, 0);
+        //resp = recv_mem(e_m_struct, evlist, ptr_bin->commands, 1, 0);
+        resp = recv(CAST_DATA_PTR->fd, ptr_bin->commands, 1,0);        
         if (resp <= 0){
             if (resp == -1){
                 quit_epoll(e_m_struct, evlist);
