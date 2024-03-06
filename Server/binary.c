@@ -30,8 +30,8 @@ int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     /*En la primera vez consume el primer comando (PUT/GET/DEL/...)*/
     if (ptr_bin->binary_to_read_commands == 5){
 
-        //resp = recv_mem(e_m_struct, evlist, ptr_bin->commands, 1, 0);
-        resp = recv(CAST_DATA_PTR->fd, ptr_bin->commands, 1,0);        
+        resp = recv_mem(e_m_struct, evlist, ptr_bin->commands, 1, 0);
+        //resp = recv(CAST_DATA_PTR->fd, ptr_bin->commands, 1,0);        
         if (resp <= 0){
             if (resp == -1){
                 quit_epoll(e_m_struct, evlist);
@@ -143,6 +143,7 @@ int read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     pos = 5 - ptr_bin->binary_to_read_commands;
 
     resp = recv_mem(e_m_struct, evlist, (ptr_bin->commands + pos), ptr_bin->binary_to_read_commands, 0);
+    //resp = recv(CAST_DATA_PTR->fd, (ptr_bin->commands + pos), ptr_bin->binary_to_read_commands, 0); 
         if (resp <= 0){
             if (resp == -1){
                 quit_epoll(e_m_struct, evlist);
@@ -177,7 +178,15 @@ int read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     }
 
     if (tot_read == 0 && ptr_bin->key == NULL){
+        printf("Command = %d\n", (int)ptr_bin->commands[0]);
+        printf("Command = %d\n", (int)ptr_bin->commands[1]);
+        printf("Command = %d\n", (int)ptr_bin->commands[2]);
+        printf("Command = %d\n", (int)ptr_bin->commands[3]);
+        printf("Command = %d\n", (int)ptr_bin->commands[4]);
+        printf("command %d\n", *(int*)(&ptr_bin->commands[1]));
+        printf("ntohl: %u\n",ntohl(*(int*)(ptr_bin->commands + 1)));
         ptr_bin->length_key = ntohl(*(int*)(ptr_bin->commands + 1));
+        printf("LENGTH KEY: %d\n", ptr_bin->length_key);
         ptr_bin->key = memc_alloc(e_m_struct->mem, ptr_bin->length_key + 1, MALLOC, NULL);
         ptr_bin->to_consumed = ptr_bin->length_key;
         ptr_bin->comandos_leidos = 0;
@@ -219,12 +228,13 @@ int read_content(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     }
     
     resp = recv_mem(e_m_struct, evlist, content + pos, ptr_bin->to_consumed, 0);
-        if (resp <= 0){
-            if (resp == -1){
-                quit_epoll(e_m_struct, evlist);
-                return -1; //No volverlo a meter al epoll
-            }
-            return 0; //Volverlo a meter al epoll
+    //resp = recv(CAST_DATA_PTR->fd, content + pos, ptr_bin->to_consumed, 0);
+    if (resp <= 0){
+        if (resp == -1){
+            quit_epoll(e_m_struct, evlist);
+            return -1; //No volverlo a meter al epoll
+        }
+        return 0; //Volverlo a meter al epoll
     }
 
     //resp = recv(ptr->fd, content + pos, ptr_bin->to_consumed, 0);

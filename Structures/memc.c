@@ -138,11 +138,11 @@ int memc_eviction(memc_t mem) {
         //printf("Borro %d cosas.", count);
         memory += sizeof(node_t) + tbd->data_len + tbd->key_len;
         // printf("memory : %ld.\n", memory);
-        printf("tbd : %p.\n", tbd);
+        //printf("tbd : %p.\n", tbd);
         //Del node hash
         tab_index = mem->hash(tbd->key_buff,tbd->key_len) % mem->buckets;
         if (tbd == mem->tab[tab_index]){
-            puts("apunto a otro");
+            //puts("apunto a otro");
             mem->tab[tab_index] = node_arrow(tbd, HASH, RIGHT);
         }
         node_discc(HASH, tbd);
@@ -153,7 +153,7 @@ int memc_eviction(memc_t mem) {
 
         count++;
     }
-    printf("Eviction : elimine %d.\n", count);
+    //printf("Eviction : elimine %d.\n", count);
     memc_unlock(mem);
 
     stat_add(mem->keys, -count);
@@ -164,25 +164,30 @@ int memc_eviction(memc_t mem) {
 void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
     void* ret = NULL;
     int flag = 1;
+    size_t save_bytes = bytes;
+
+        //perror("Antes de allocar");
+        printf("Pedí %ld bytes.\n",save_bytes);
 
     switch (fun) {
         case MALLOC:
-            ret = malloc(bytes);
+            ret = malloc(save_bytes);
             break;
         case CALLOC:
-            ret = calloc(bytes, 8);
+            ret = calloc(save_bytes, 8);
             break;
         case REALLOC:
-            ret = realloc(rea , bytes);
+            ret = realloc(rea , save_bytes);
             break;
     }
 
     if (ret == NULL){
         perror("Antes del loop");
-        printf("Pedí %ld bytes.\n",bytes);
+        printf("Pedí %ld bytes.\n",save_bytes);
         while ((ret == NULL) && flag) { // ret == NULL
             // REGIÓN CRÍTICA 
             //puts("Holanda");
+            //bytes = save_bytes;
             if(memc_eviction(mem) == -1){
                 puts("me dio -1");
                 flag = 0;
@@ -190,13 +195,22 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
             
             switch (fun) {
                 case MALLOC:
-                    ret = malloc(bytes);
+                    puts("hago malloc");
+                    ret = malloc(save_bytes);
+                    printf("malloc ret: %p\n",ret);
+                    printf("malloc bytes: %ld\n", save_bytes);
                     break;
                 case CALLOC:
-                    ret = calloc(bytes, bytes);
+                    puts("hago calloc");
+                    ret = calloc(save_bytes, 8);
+                    printf("malloc bytes: %d\n", (int)save_bytes);
+                    printf("calloc ret: %p\n",ret);
                     break;
                 case REALLOC:
-                    ret = realloc(rea , bytes);
+                    puts("hago ralloc");
+                    ret = realloc(rea , save_bytes);
+                    printf("ralloc bytes: %d\n", (int)save_bytes);
+                    printf("realloc ret: %p\n",ret);
                     break;
             }
         }

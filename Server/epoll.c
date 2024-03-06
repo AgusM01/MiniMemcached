@@ -67,7 +67,7 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
         d_ptr->binary->data_or_key = 0;
         d_ptr->binary->dato = NULL;
         d_ptr->binary->key = NULL;
-        d_ptr->binary->commands = memc_alloc(mem, 6, MALLOC, NULL);
+        d_ptr->binary->commands = memc_alloc(mem, 5, MALLOC, NULL);
         d_ptr->delimit_pos = NULL;        
     }
     ev.data.ptr = d_ptr;
