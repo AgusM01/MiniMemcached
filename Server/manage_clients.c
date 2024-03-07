@@ -285,6 +285,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
                 free(buf);
                 return -1;
             }
+            free(buf);
         }
         return 0;
     }

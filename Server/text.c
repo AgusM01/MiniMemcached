@@ -44,7 +44,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     if (ptr->cant_comm_ptr == 0){
 
         /*Primer recv para ubicar la posicion del \n*/
-        fst_read = recv_mem(e_m_struct, evlist, temp, MAX_CHAR, MSG_PEEK);
+        //fst_read = recv_mem(e_m_struct, evlist, temp, MAX_CHAR, MSG_PEEK);
+        fst_read = recv(ptr->fd, temp, MAX_CHAR, MSG_PEEK);
         if (fst_read <= 0){
             if (fst_read == -1){
                 quit_epoll(e_m_struct, evlist);
@@ -91,7 +92,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             ptr->readed >= 2048){ /*No hay ningun \n en 2048 bytes. Debo leer más para encontrarlo y descartar ese comando*/
             puts("Lei error");
             
-            err_read = recv_mem(e_m_struct, evlist, temp, fst_read, MSG_WAITALL);
+            err_read = recv(ptr->fd, temp, fst_read, MSG_WAITALL);
             if (err_read <= 0){
                 if (err_read == -1){
                     quit_epoll(e_m_struct, evlist);
@@ -122,7 +123,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             if (ptr->readed + fst_read >= MAX_CHAR){
                 char err_buf[fst_read];
 
-                fst_read = recv_mem(e_m_struct, evlist, err_buf, fst_read, MSG_WAITALL);
+                fst_read = recv(ptr->fd, err_buf, fst_read, MSG_WAITALL);
                 if (fst_read <= 0){
                     if (fst_read == -1){
                         quit_epoll(e_m_struct, evlist);
@@ -149,7 +150,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
                 return 0;
             }
 
-            fst_read = recv_mem(e_m_struct, evlist, ptr->command + ptr->readed, fst_read, MSG_WAITALL);
+            fst_read = recv(ptr->fd, ptr->command + ptr->readed, fst_read, MSG_WAITALL);
             if (fst_read <= 0){
                 if (fst_read == -1){
                     quit_epoll(e_m_struct, evlist);
@@ -206,7 +207,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     if (ptr->missing){ //Lo tengo que unir
 
 
-        rec = recv_mem(e_m_struct, evlist, ptr->command + ptr->readed, s, MSG_WAITALL);
+        rec = recv (ptr->fd, ptr->command + ptr->readed, s, MSG_WAITALL);
         if (rec <= 0){
             if (rec == -1){
                 quit_epoll(e_m_struct, evlist);
@@ -231,7 +232,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
         char* comm = memc_alloc(e_m_struct->mem, s + 1, MALLOC, NULL);
         assert(comm != NULL);
 
-        read_comm = recv_mem(e_m_struct, evlist, comm, s, MSG_WAITALL);
+        read_comm = recv(ptr->fd, comm, s, MSG_WAITALL);
         if (read_comm <= 0){
             if (read_comm == -1){
                 quit_epoll(e_m_struct, evlist);
@@ -326,8 +327,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     /*La idea es: leer 2048, responder todos los pedidos, si hay alguno cortado, meterlo al epoll y esperar que llegue completo.*/
 
     /*Recibo lo que me mandó*/
-    rv = recv_mem(e_m_struct, evlist, ptr->command, MAX_CHAR, 0);
-    //rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
+    rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
     //printf("rv after recv: %d\n", rv);
     if (rv <= 0){
         if (rv == -1){

@@ -35,6 +35,8 @@ int recv_mem(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, 
 
     struct data_ptr* ptr;
     ptr = CAST_DATA_PTR;
+    
+
     rcv = recv(ptr->fd, buf, len, flags);
     if (!rcv) 
         perror("Recieve 1");
