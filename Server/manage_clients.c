@@ -37,6 +37,7 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     ptr = CAST_DATA_PTR;
 
     //printf("cant_comm: %d\n", cant_comm);
+
     if (cant_comm == 0){
         puts("MANDO EINVAL");
         snd = writen(ptr->fd, einval, strlen(einval));

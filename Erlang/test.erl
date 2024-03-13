@@ -1,6 +1,7 @@
 -module(test).
 -import(memcache, []).
--export([prueba/0, destruccion_total/1, readlines/1, test_uno/1]).
+-import(memcache_txt, []).
+-export([prueba/0, destruccion_total/1, readlines/1, destruccion_textual/1, test_uno/1]).
 
 
 prueba() ->
@@ -24,6 +25,43 @@ genera_puts(S, N) ->
         ok -> genera_puts(S, N - 1);
         Error -> {Error, memcache:close(S)}
     end.
+
+
+destruccion_textual(0) ->
+    S = memcache_txt:start(localhost),
+    spawn(fun() -> proc_textualizado(S, 1) end);
+
+destruccion_textual(N) ->
+    S = memcache_txt:start(localhost),
+    spawn(fun() -> proc_textualizado(S, N) end),
+    destruccion_textual(N-1).
+
+
+proc_textualizado(S, N) ->
+    self() ! mandale,
+    receive
+        mandale -> 
+            textos(S, N, N),
+            proc_textualizado(S, N - 1);
+        stop -> ok
+    end.
+
+textos(S, M, N) ->
+    Clave = genera_texto( 97 + (N rem 26), M),
+    Valor = genera_texto( 97 + (N rem 26), M),
+    Put = "PUT " ++ Clave ++ " " ++ Valor ++ "\n",
+    Get = "GET " ++ Clave ++ "\n",
+    Del =  "DEL " ++ Clave ++ "\n",
+    memcache_txt:send_msg(S, Put),
+    memcache_txt:send_msg(S, Get),
+    memcache_txt:send_msg(S, Del).
+
+
+genera_texto(_, 0) ->
+    [];
+
+genera_texto(Txt, N) ->
+    [Txt | genera_texto(Txt, N - 1)].
 
 
 destruccion_total(0) ->
