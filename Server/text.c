@@ -330,6 +330,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
     /*Recibo lo que me mandó*/
     rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
+    printf("Command: %s\n", ptr->command);
     //printf("rv after recv: %d\n", rv);
     printf("Comm %s\n", ptr->command);
     if (rv <= 0){
@@ -460,7 +461,6 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                     //ptr->command[ptr->actual_pos_arr] = '\0';
                     //printf("command: %s\n", ptr->command);
                     //ptr->command[ptr->actual_pos_arr] = '\n';
-                    //printf("Prev Pos arr = %d\n", ptr->prev_pos_arr);
                     for (int i = 0; i < tot; i++){
                         if (c < len){
                             //printf("to_complete[%d]: %c\n", i, ptr->to_complete[i]);
@@ -471,8 +471,10 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                             comm[len + i] = ptr->command[i];
                         }
                     }
-                    printf("Len = %d y apr = %d.\n", len,ptr->actual_pos_arr);
-                    comm[len + ptr->actual_pos_arr - 1] = '\0';
+                    printf("len: %d\n", len);
+                    printf("c: %d\n", c);
+                    printf("len + c = %d\n", len + c);
+                    comm[len + ptr->actual_pos_arr] = '\0';
                     
                     //for (int c = 0; c < len + tot; c++)
                     //    printf("comm[%d]: %c\n", c, comm[c]);
@@ -490,13 +492,13 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                     comm[c] = ptr->command[i];
                     c++;
                 }
+                printf("c = %d\n", c);
                 comm[c] = '\0';
                 //puts("lo formo normal");
             }
             
-            //printf("comm: %s\n", comm);
             if (cut){
-                printf(" Linea 498 Commm  %s\n", comm);
+                printf("comm: %s\n", comm);
                 char** token_commands;
                 token_commands = text_parser(comm, &cant_comm, DELIMITER, e_m_struct->mem);
                 if (token_commands != NULL){
@@ -536,6 +538,8 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     }
     puts("SALGO");
     printf("missing: %d\n", ptr->missing);
+    printf("to_complete: %s\n", ptr->to_complete);
+    puts("HOLAAA");
     ptr->actual_pos_arr = 0;
     ptr->prev_pos_arr = 0;
     ptr->is_command = 0;
