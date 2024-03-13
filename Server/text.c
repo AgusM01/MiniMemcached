@@ -459,7 +459,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                     //printf("command: %s\n", ptr->command);
                     //ptr->command[ptr->actual_pos_arr] = '\n';
                     for (int i = 0; i < tot; i++){
-                        if (c < len){
+                        if (i < len){
                             //printf("to_complete[%d]: %c\n", i, ptr->to_complete[i]);
                             comm[i] = ptr->to_complete[i];
                         }
