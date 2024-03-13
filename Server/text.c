@@ -106,6 +106,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             //    quit_epoll(e_m_struct, evlist);
             //    return;
             //}
+            puts("Holanda");
             snd = writen(ptr->fd, &err, strlen(err));
             if (snd == -1)
                 perror("error_send");
@@ -137,7 +138,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
                 //    quit_epoll(e_m_struct, evlist);
                 //    return;
                 //}
-                
+                puts("Holanda 141");
                 snd = writen(ptr->fd, &err, strlen(err));
                 if (snd == -1)
                     perror("error_send");
@@ -172,6 +173,7 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
             if (ptr->readed < MAX_CHAR)
                 ptr->command[ptr->readed] = '\0';
             else{
+                puts("Holnada 176");
                 snd = writen(ptr->fd, &err, strlen(err));
                 if (snd == -1) 
                     perror("error_send");
@@ -330,6 +332,7 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     rv = recv(ptr->fd, ptr->command, MAX_CHAR, 0);
     printf("Command: %s\n", ptr->command);
     //printf("rv after recv: %d\n", rv);
+    printf("Comm %s\n", ptr->command);
     if (rv <= 0){
         if (rv == -1){
             quit_epoll(e_m_struct, evlist);
@@ -467,7 +470,6 @@ int text2(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
                             //printf("command[%d]: %c\n", i, ptr->command[i]);
                             comm[len + i] = ptr->command[i];
                         }
-                        c++;
                     }
                     printf("len: %d\n", len);
                     printf("c: %d\n", c);
