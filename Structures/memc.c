@@ -5,7 +5,7 @@
 #include "memc_queue.h"
 #include "memc_node.h"
 #include "memc_stat.h"
-#include "utils.h"
+//#include "utils.h"
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
@@ -183,34 +183,34 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
 
     if (ret == NULL){
         //perror("Antes del loop");
-        //printf("Pedí %ld bytes.\n",save_bytes);
+        printf("Pedí %ld bytes.\n",save_bytes);
         while ((ret == NULL) && flag) { // ret == NULL
             // REGIÓN CRÍTICA 
             //puts("Holanda");
             //bytes = save_bytes;
             if(memc_eviction(mem) == -1){
-                //puts("me dio -1");
+                puts("me dio -1");
                 flag = 0;
             }
             
             switch (fun) {
                 case MALLOC:
-                    //puts("hago malloc");
+                    puts("hago malloc");
                     ret = malloc(save_bytes);
-                    //printf("malloc ret: %p\n",ret);
-                    //printf("malloc bytes: %ld\n", save_bytes);
+                    printf("malloc ret: %p\n",ret);
+                    printf("malloc bytes: %ld\n", save_bytes);
                     break;
                 case CALLOC:
-                    //puts("hago calloc");
+                    puts("hago calloc");
                     ret = calloc(save_bytes, 8);
-                    //printf("malloc bytes: %d\n", (int)save_bytes);
-                    //printf("calloc ret: %p\n",ret);
+                    printf("malloc bytes: %d\n", (int)save_bytes);
+                    printf("calloc ret: %p\n",ret);
                     break;
                 case REALLOC:
-                    //puts("hago ralloc");
+                    puts("hago ralloc");
                     ret = realloc(rea , save_bytes);
-                    //printf("ralloc bytes: %d\n", (int)save_bytes);
-                    //printf("realloc ret: %p\n",ret);
+                    printf("ralloc bytes: %d\n", (int)save_bytes);
+                    printf("realloc ret: %p\n",ret);
                     break;
             }
         }

@@ -96,6 +96,7 @@ int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
 
     /*Si es un put tengo que hacer otra lectura*/
     if ((int)ptr_bin->commands[0] == 11){
+        printf("comandos_leidos: %d\n", ptr_bin->comandos_leidos);
         ptr_bin->binary_to_read_commands = 4 - ptr_bin->comandos_leidos;
         ptr_bin->data_or_key = 1;
 
@@ -162,6 +163,7 @@ int read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     //    return;
     //}
     
+        printf("resp: %d\n", resp);
     if (resp != -1)
         tot_read = ptr_bin->binary_to_read_commands - resp;
     else
@@ -172,13 +174,13 @@ int read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
         ptr_bin->binary_to_read_commands = tot_read;
 
         if (resp != -1)
-            ptr_bin->comandos_leidos = resp;
+            ptr_bin->comandos_leidos += resp;
         
         return 0;
     }
 
     if (tot_read == 0 && ptr_bin->key == NULL){
-        //printf("Command = %d\n", (int)ptr_bin->commands[0]);
+        //printf("Command key= %d\n", (int)ptr_bin->commands[0]);
         //printf("Command = %d\n", (int)ptr_bin->commands[1]);
         //printf("Command = %d\n", (int)ptr_bin->commands[2]);
         //printf("Command = %d\n", (int)ptr_bin->commands[3]);
@@ -194,7 +196,13 @@ int read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     }
 
     if (tot_read == 0 && ptr_bin->dato == NULL){
+        //printf("Command dato = %d\n", (int)ptr_bin->commands[0]);
+        //printf("Command = %d\n", (int)ptr_bin->commands[1]);
+        //printf("Command = %d\n", (int)ptr_bin->commands[2]);
+        //printf("Command = %d\n", (int)ptr_bin->commands[3]);
+        //printf("Command = %d\n", (int)ptr_bin->commands[4]);
         ptr_bin->length_dato = ntohl(*(int*)(ptr_bin->commands + 1));
+        //printf("length_dato: %u\n", ptr_bin->length_dato);
         ptr_bin->dato = memc_alloc(e_m_struct->mem, ptr_bin->length_dato + 1, MALLOC, NULL);
         ptr_bin->to_consumed = ptr_bin->length_dato;
         ptr_bin->comandos_leidos = 0;
