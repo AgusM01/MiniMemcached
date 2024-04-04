@@ -27,7 +27,7 @@ genera_puts(S, N) ->
     end.
 
 
-destruccion_textual(0) ->
+destruccion_textual(1) ->
     S = memcache_txt:start(localhost),
     spawn(fun() -> proc_textualizado(S, 1) end);
 

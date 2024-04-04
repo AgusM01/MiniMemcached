@@ -25,15 +25,17 @@ void ls_destroy(ls_t* ls) {
     free(ls);
 }
 
+/*Lectores / Escritores*/
 void ls_lock(ls_t* ls, sem_t* sem) {
-    assert(!sem_wait(ls->mutex));
+    assert(!sem_wait(ls->mutex)); // Entro a la habitacion
         
-    ls->count++;
+    ls->count++; // Me anoto que entro
 
-    if (ls->count == 1)
-        assert(!sem_wait(sem));
+    if (ls->count == 1) // Soy el unico
+        assert(!sem_wait(sem)); // No quiero que entren escritores (desalojo)
 
-    assert(!sem_post(ls->mutex));
+    assert(!sem_post(ls->mutex));   // Modifique contador (Region Critica).
+                                    // Dejo que entre otro.
 }
 
 void ls_unlock(ls_t* ls, sem_t* sem) {
@@ -42,7 +44,8 @@ void ls_unlock(ls_t* ls, sem_t* sem) {
     ls->count--;
 
     if (ls->count == 0)
-        assert(!sem_post(sem));
+        assert(!sem_post(sem)); // Se fueron todos lectores, 
+                                // dejo que entren escritores (desalojo).
 
     assert(!sem_post(ls->mutex));
 }

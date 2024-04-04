@@ -37,10 +37,10 @@ node_t* node_search(node_t* node, void* key, unsigned int len, mod_t hq) {
   node_t* temp = node;
 
   for(;
-    temp &&                          
-    (temp->key_len != len || 
-    memcmp(temp->key_buff, key, len)); 
-    temp = temp->arrows[hq + RIGHT]
+    temp && //temp != NULL                         
+    (temp->key_len != len || // Checkea longitudes
+    memcmp(temp->key_buff, key, len)); // Checkea keys
+    temp = temp->arrows[hq + RIGHT] // Retorna el nodo
   );
 
   return temp;

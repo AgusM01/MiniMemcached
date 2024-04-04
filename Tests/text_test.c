@@ -105,6 +105,15 @@ int main(){
     buf[readed] = '\0';
     printf("%s", buf);
     
+    send(sock, "GET", 3, 0);
+    sleep(7);
+    send(sock, " l", 2, 0);
+    sleep(7);
+    send(sock, "uis\n", 4, 0);
+    readed = read(sock, &buf, 100);
+    buf[readed] = '\0';
+    printf("%s", buf);
+
     while(1){}
     return 0;
 

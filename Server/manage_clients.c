@@ -36,11 +36,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     struct data_ptr* ptr;
     ptr = CAST_DATA_PTR;
 
-    puts("MANDO");
-    //printf("cant_comm: %d\n", cant_comm);
-
+    /*Checkeo si la cantidad de comandos es correcta*/  
     if (cant_comm == 0){
-        puts("MANDO EINVAL");
         snd = writen(ptr->fd, einval, strlen(einval));
         if (snd == -1)
             perror("error_send");
@@ -50,6 +47,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         }
         return 0;
     }
+
+    /*Checkeo el tipo de comando*/
     if (!strcmp(token_comands[0], "PUT")) 
         command = 0;
     if (!strcmp(token_comands[0], "DEL")) 
@@ -58,7 +57,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         command = 2;
     if (!strcmp(token_comands[0], "STATS")) 
         command = 3;
-
+    
+    /*Analizo todos los posibles errores que responderia con error*/
     if ((cant_comm == 0)
         || (command == -1)
         || ((command == 0) && (cant_comm != 3))
@@ -66,9 +66,6 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         || ((command == 2) && (cant_comm != 2))
         || ((command == 3) && (cant_comm != 1)))
         {
-        
-        //for (int i = 0; i <  cant_comm; i++)
-        //    printf("token_command[%d]: %s\n", i, token_comands[i]);
 
         snd = writen(ptr->fd, einval, strlen(einval));
         if (snd == -1)
@@ -79,14 +76,11 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         }
         return 0;
     }
-
+    
+    /*PUT*/
     if (command == 0){
-        //printf("Pongo clave: %s, valor: %s\n Longitudes clave: %ld, valor: %ld\n", token_comands[1], token_comands[2], strlen(token_comands[1]),strlen(token_comands[2]));
         int len_tok_1 = my_length(token_comands[1]);
         int len_tok_2 = my_length(token_comands[2]);
-
-        //printf("Longitud token 1: %ld\n", strlen(token_comands[1]));
-        //printf("len_tok_1: %d\n", len_tok_1);
 
         if (len_tok_1 == -1 || len_tok_2 == -2){
             snd = writen(ptr->fd, einval, strlen(einval));
@@ -109,14 +103,11 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             quit_epoll(e_m_struct, evlist);
             return -1;
         }
-        //snd = send(CAST_DATA_PTR->fd, ok, strlen(ok), MSG_NOSIGNAL);
-        //perror("error_send");
-        //if (snd == 0 || snd == -1){
-        //    quit_epoll(e_m_struct, evlist);
-        //    return;
-        //}
     }
+
+    /*DEL*/
     if (command == 1){
+        
         int len_tok_1 = my_length(token_comands[1]);
         
         if (len_tok_1 == -1){
@@ -144,6 +135,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         }
 
     }
+
+    /*GET*/
     if (command == 2){
 
         int len_tok_1 = my_length(token_comands[1]);
@@ -157,7 +150,6 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             return 0;    
         }
 
-        //printf("Busco: %s, longitud: %ld\n", token_comands[1], strlen(token_comands[1]));
         res = memc_get  (e_m_struct->mem,
                         token_comands[1], 
                         len_tok_1, 
@@ -189,10 +181,15 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             free(get_value);
     
     }
+
+    /*STATS*/
     if (command == 3){
+
         memc_stats(e_m_struct->mem, &stats);
+        
         len_stat_buf = sprintf(stat_buf,"OK PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats.puts, stats.dels, stats.gets, stats.keys);
         assert(len_stat_buf > 0);
+        
         snd = writen(ptr->fd, stat_buf, len_stat_buf);
         if (snd == -1)
             perror("error_send");
@@ -201,6 +198,7 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             return -1;
         }
     }
+    
     return 0;
 }
 
@@ -244,6 +242,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             
         return 0;
     }
+
     /*Checkeo si es GET*/
     if ((int)ptr_bin->commands[0] == 13){
         command = 1;
@@ -254,6 +253,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
                         ptr->text_or_binary);
         if (!res){
 
+            /*No encontró la clave*/
             snd = writen(ptr->fd, &enotfound, 1);
             if (snd == -1)
                 perror("error_send");
@@ -263,9 +263,9 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             }
         }
         else{
-            
+
+            /*Encontré la clave*/
             len = htonl(res);
-            //int_to_binary(res, (void*)&len);
             
             snd = writen(ptr->fd, &ok, 1);
             if (snd != 0){
@@ -294,7 +294,9 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
 
     /*Checkeo si es DEL*/
     if ((int)ptr_bin->commands[0] == 12){
+        
         command = 2;
+        
         res = memc_del(e_m_struct->mem,
                         ptr_bin->key,
                         ptr_bin->length_key,
@@ -320,14 +322,16 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         }
         return 0;
     }
+
     /*Checkeo si es STATS*/
     if ((int)ptr_bin->commands[0] == 21){
+        
         command = 3;
+        
         memc_stats(e_m_struct->mem, &stats);
         len_stat_buf = sprintf(stat_buf,"PUTS=%lu DELS=%lu GETS= %lu KEYS=%lu\n", stats.puts, stats.dels, stats.gets, stats.keys);
 
         len = htonl(len_stat_buf);
-        //int_to_binary(len_stat_buf, (void*)&len);
         
         snd = writen(ptr->fd, &ok, 1);
         if (snd == -1)
@@ -355,6 +359,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         }
 
     }
+
     /*Comando erróneo*/
     if (command == -1){
 

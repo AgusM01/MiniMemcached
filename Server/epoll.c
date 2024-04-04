@@ -18,7 +18,6 @@
 #define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
 #define CAST_DATA_PTR_BINARY CAST_DATA_PTR->binary
 
-/*Crea una instancia de epoll*/
 void epoll_initiate(int* epollfd){
 
     *epollfd = epoll_create(1);
@@ -28,8 +27,8 @@ void epoll_initiate(int* epollfd){
     return;
 }
 
-/*Añade los fd a la instancia de epoll para monitorearlos*/
 void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
+
     /*Ajustamos la configuracion de cada fd a agregar a la instancia de epoll*/
     /*Como banderas:*/
     /*EPOLLIN: Avisa cuando hay datos para lectura disponibles*/
@@ -46,7 +45,7 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
     if (mode == 0){
         d_ptr->cant_comm_ptr = 0;
         d_ptr->actual_pos_arr = 0;
-        d_ptr->delimit_pos = memc_alloc(mem, 4*N_COMMANDS, MALLOC, NULL); /*Liberar esto*/
+        d_ptr->delimit_pos = memc_alloc(mem, 4*N_COMMANDS, MALLOC, NULL); 
         d_ptr->binary = NULL;
         d_ptr->command = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
         d_ptr->missing = 0;
@@ -73,9 +72,8 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
     ev.data.ptr = d_ptr;
     
 
-    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; //NO USAR EDGE TRIGGERED YA QUE SI UN HILO MANDA MUCHISIMO NO VA A AVISAR PENSAR CHARLADO CON NERI ESCUCHAR AUDIO ZOE
-    
-    if ( -1 == fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK)))
+    ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP;     
+    if (fcntl(sockfd, F_SETFL, (fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK) == -1))
         perror("fcntl_ret epoll.c");
 
     epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev);
@@ -90,9 +88,8 @@ void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     struct data_ptr_binary* ptr_bin;
     ptr_bin = CAST_DATA_PTR_BINARY;
 
-    //printf("Lo saque a: %d\n", ptr->fd);
-    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, ptr->fd, evlist); /*En lugar de null puede ser e_m_struct->evlist para portabilidad pero ver bien*/
-    
+    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, ptr->fd, evlist);
+
     if(!ptr->text_or_binary){
         close(ptr->fd);
         free(ptr->command);
@@ -111,7 +108,6 @@ void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
 }
 
 
-/*Le da un fd listo a cada thread*/
 void* epoll_monitor(void* args){
     
 
@@ -123,65 +119,53 @@ void* epoll_monitor(void* args){
     
     struct epoll_event* evlist = memc_alloc(e_m_struct->mem,sizeof(struct epoll_event) * MAX_EVENTS, MALLOC, NULL); //Liberar esto al final
     
-    //e_m_struct->evlist = evlist;
-    //printf("Entro al while soy %ld\n", pthread_self());
     while(1){
 
         /*Retorna los fd listos para intercambio de datos*/
-        /*La idea es que los hilos checkeen si hay disponibles fd, si hay un hilo irá a 
+        /*La idea es que los hilos checkeen si hay fd disponibles, si hay un hilo, irá a 
             atender a ese cliente y las siguientes llamadas a epoll_wait no avisaran de este fd.
             La bandera EPOLLONESHOT ayuda a esto haciendo que no aparezca en la lista de ready 
             devuelta por epoll_wait en el caso de tener nuevo input que ya está siendo 
             atendida por un hilo. Ese hilo debe volver a activar las notificaciones de
-            ese cliente. El hilo responde una consulta sola y lo vuelve a meter al epoll asi puede ir a atender a mas hilos*/
+            ese cliente.*/
         do{
             a = epoll_wait(e_m_struct->epollfd, evlist, MAX_EVENTS, -1);
         }while(a < 0 && errno == EINTR);
-        //perror("epoll_wait");
-        //assert(a != -1);
+        
         struct data_ptr* ptr;
         ptr = CAST_DATA_PTR;
 
-        //printf("Atiendo a fd: %d\n", ptr->fd);
-        //printf("FLAGS: %d\n", (int)e_m_struct->evlist->events);
-
         /*Tenemos un fd disponible para lectura.*/
-        //printf("Voy a atender a fd: %d\n", CAST_DATA_PTR->fd);
+      
         /*Verificar la presencia de EPOLLHUP o EPOLLER en cuyo caso hay que cerrar el fd*/
-        
         if ((evlist->events & EPOLLRDHUP) 
             || (evlist->events & EPOLLERR)
             || (evlist->events & EPOLLHUP)){
             quit_epoll(e_m_struct, evlist);
         }
         else{
-            //printf("No es un cliente desconectado\n");
 
             /*Si es el fd del socket del server debemos atender a un nuevo cliente.*/
             if ((ptr->fd == e_m_struct->sockfd_text) ||
                 (ptr->fd == e_m_struct->sockfd_binary)){
                 
-                //printf("Hay que aceptar a alguien.\n");
                 /*Aceptamos al nuevo cliente*/
                 new_client(e_m_struct, evlist, ptr->text_or_binary);
-                /*Lo añadimos a la instancia de epoll para monitorearlo.*/
             }
             else{
                 int resp = 0;
                 if (!ptr->text_or_binary){
-
-                    //printf("Es un cliente de pedidos\n");
+                    /*Es un cliente en modo texto*/
                     /*Este cliente no es nuevo por lo que nos hará consultas.*/
-                    /*Hacer un if para diferenciar entre cliente de texto y binario mediante el data.u32*/  
-
-                    //resp = text_consume(e_m_struct, evlist);
                     resp = text2(e_m_struct, evlist);
 
                 }
                 else{
+                    /*Es un cliente en modo binario*/
                     resp = binary_consume(e_m_struct, evlist);
                 }
                 
+                /*Si las funciones de consumir texto/binario no dieron error, lo vuelvo a monitorear*/
                 if (resp != -1){
                     struct epoll_event ev;
                     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 

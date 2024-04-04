@@ -38,30 +38,30 @@ void queue_destroy(queue_t* queue) {
 
 /* Tested */
 void queue_addmru(queue_t *queue, node_t *node) {
-  if (!queue->mru) {
+  if (!queue->mru) { //Si es NULL, es el primero
     queue->mru = node;
     queue->lru = node;
     return;
   }
 
-  if (node == queue->mru)
+  if (node == queue->mru) // Ya es el mru
     return;
 
-  //node_discc(QUEUE, node);
-  assert(node_addhd(QUEUE, node, queue->mru) != -1);
+  node_addhd(QUEUE, node, queue->mru); //Lo agg a la queue y es el mru.
   queue->mru = node;
 }
 
 /* Tested */
 void queue_delnode(queue_t* queue, node_t *node) {
   if (queue->lru == node)
-    queue->lru = node_arrow(node, QUEUE, LEFT);
+    queue->lru = node_arrow(node, QUEUE, LEFT); // Actualiza el lru
   if (queue->mru == node)
-    queue->mru = node_arrow(node, QUEUE, RIGHT);
-  node_discc(QUEUE, node); 
+    queue->mru = node_arrow(node, QUEUE, RIGHT); //Actualiza mru
+  node_discc(QUEUE, node); //No hace free 
 }
 
 /* Tested */
+/*Elimina el lru y lo retorna*/
 node_t* queue_dqlru(queue_t* queue) {
   if (!queue->lru)
     return NULL;

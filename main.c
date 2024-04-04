@@ -21,6 +21,7 @@ int main(int argc, char* argv[]){
     }
 
     size_t byte_limit = atoll(argv[1]);
+    
     limit_mem(byte_limit);
 
     int sockfd_text; /*Este seria el socket de texto*/

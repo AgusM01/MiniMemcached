@@ -109,8 +109,8 @@ void node_set(
 //Bloquea los nuevos threads
 // 
 void memc_lock(memc_t mem) {
-    assert(!sem_wait(mem->turnstile));
-    assert(!sem_wait(mem->evic_mutex));
+    assert(!sem_wait(mem->turnstile)); // Impido que entren nuevos.
+    assert(!sem_wait(mem->evic_mutex)); // Si gano el mutex tengo acceso total.
 }
 
 void memc_unlock(memc_t mem) {
@@ -234,9 +234,9 @@ int memc_put(
     mode_t md
     ) {
 
-    //Turnstile
-    assert(!sem_wait(mem->turnstile));
-    assert(!sem_post(mem->turnstile));
+    //Turnstile / Me meto en la habitacion
+    assert(!sem_wait(mem->turnstile)); /* Pido el mutex */
+    assert(!sem_post(mem->turnstile)); /* Lo libero */
 
     int search;
     unsigned i = mem->hash(key,key_len);

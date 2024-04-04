@@ -17,7 +17,7 @@
 /*Crea un socket TCP en dominio IPv4*/
 /*Retorna un fd que representa nuestro socket y al cual se conectarán los clientes.*/
 void sock_creation(int* sockfd, int port_num){
-    //Ver lectura no bloqueante 
+    
     *sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == NULL)
         perror("sock_creation");
@@ -32,7 +32,7 @@ void sock_creation(int* sockfd, int port_num){
     assert(!bind(*sockfd, (struct sockaddr*) &sa, sizeof(sa)));
 
     // Ponemos el socket en escucha.
-    if ( -1 ==listen(*sockfd, SOMAXCONN))
+    if (listen(*sockfd, SOMAXCONN) == -1)
         perror("sock_listen");
     return;
 }
@@ -51,11 +51,9 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     if (mode == 0){
         /*Aceptamos al nuevo cliente*/
         client_sockfd = accept(e_m_struct->sockfd_text, NULL, 0);
-        //printf("Acepto a: %d modo texto.\n", client_sockfd);
     }
     else{
         client_sockfd = accept(e_m_struct->sockfd_binary, NULL, 0);
-       // printf("Acepto a: %d modo binario.\n", client_sockfd);
     }
     
     
@@ -72,6 +70,7 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
 
     /*Vuelve a meter al fd que acepta clientes*/
     epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, ptr->fd, &ev);
+    
     /*Mete al fd nuevo*/
     epoll_add(client_sockfd, e_m_struct->epollfd, ptr->text_or_binary, e_m_struct->mem);
 

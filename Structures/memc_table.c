@@ -19,6 +19,7 @@ void table_destroy(table_t tab, unsigned elements) {
   free(tab);
 }
 
+/*Inserta nodos adelante*/
 node_t* table_insert(table_t tbl, node_t* new_node, unsigned i) {
 
   if (tbl[i] != NULL) 
@@ -28,6 +29,7 @@ node_t* table_insert(table_t tbl, node_t* new_node, unsigned i) {
   return new_node;
 }
 
+/* Busca el nodo y lo deja en ret*/
 int table_search(
     table_t            tb,
     void*             key,
@@ -48,32 +50,4 @@ int table_search(
   } 
 
   return 0; 
-}
-
-int table_rehash(
-    table_t tb,
-    table_t new_tb,
-    unsigned old_size,
-    unsigned new_size,
-    unsigned (*hash)(void*,unsigned)
-    ) {
-
-
-  for(unsigned i = 0; i < old_size; i++) {
-    node_t* tbi = tb[i];
-    while(tbi != NULL) {
-      tb[i] = node_arrow(tbi, HASH, RIGHT); 
-      node_discc(HASH, tbi);
-      table_insert(
-        new_tb,
-        tbi,
-        hash(tbi->key_buff, tbi->key_len) % new_size
-        );
-      tbi = tb[i];
-    }
-  }
-
-  free(tb);
-
-  return 0;
 }

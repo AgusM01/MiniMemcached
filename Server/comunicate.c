@@ -50,13 +50,6 @@ int recv_mem(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, 
     if (rcv == -1 && errno == ENOMEM)
         flag = 1;
     
-
-    //if (rcv <= 0){
-    //        if(rcv == -1 && (errno != EWOULDBLOCK && errno != EAGAIN && errno != ENOMEM))            
-    //            return -1;
-    //    return 0;    
-    //}
-
     while (flag){
 
         flag = 0;

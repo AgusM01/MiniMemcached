@@ -4,6 +4,7 @@
 #include "../Structures/memc.h"
 #include <sys/epoll.h>
 
+/*Estructura utilizada para controlar los fd conectados al protocolo binario*/
 struct data_ptr_binary{
     int binary_to_read_commands; /*Comandos que quedan para leer*/
     int comandos_leidos;
@@ -16,6 +17,10 @@ struct data_ptr_binary{
     int data_or_key;
 };
 
+/*Estructura "padre" utilizada para controlar los fd del modo texto.
+ * También guardan la estructura binaria solo que no la utilizan. 
+ * Esto es ya que de lo contrario no puedo saber de que protocolo provienen
+ * los fd que devuelve el epoll_wait*/
 struct data_ptr {
     int fd;
     int text_or_binary; /*0 para text, 1 para binary*/
@@ -33,7 +38,7 @@ struct data_ptr {
 };
 
 
-
+/*Estructura que se utiliza para guardar los argumentos de la funcion epoll_monitor*/
 struct args_epoll_monitor {
     int epollfd;
     int sockfd_text;
@@ -41,14 +46,16 @@ struct args_epoll_monitor {
     memc_t mem;
 };
 
+/*Funcion que inicia la instancia de epoll*/
 void epoll_initiate(int* epollfd);
 
+/*Funcion que añade clientes nuevos al epoll*/
 void epoll_add(int sockfd, int epollfd, int mode, memc_t mem);
 
+/*Funcion que elimina un cliente del epoll*/
 void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist);
 
+/*Funcion que monitorea los clientes*/
 void* epoll_monitor(void* args);
-
-
 
 #endif /*__EPOLL_H__*/
