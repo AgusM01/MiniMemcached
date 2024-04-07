@@ -24,11 +24,8 @@ struct data_ptr_binary{
 struct data_ptr {
     int fd;
     int text_or_binary; /*0 para text, 1 para binary*/
-    int* delimit_pos; /*Array de posiciones de \n*/
-    int cant_comm_ptr; /*Cantidad de \n*/
     int actual_pos_arr; /*Posicion actual del array delimit_pos*/
     char* command;
-    int readed;
     int missing;
     char* to_complete;
     int pos_to_complete;

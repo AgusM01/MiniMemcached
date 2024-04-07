@@ -22,7 +22,7 @@ int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     
     struct data_ptr_binary* ptr_bin;
     ptr_bin = CAST_DATA_PTR_BINARY;
-
+    
     int resp = 0;
     int mng = -1;
     int bye = 0; 

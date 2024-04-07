@@ -44,7 +44,7 @@ int main(int argc, char* argv[]){
     /*Añade el fd del socket binario creado a la instancia de epoll para monitorearlo.*/
     epoll_add(sockfd_binary, epollfd, 1, mem);
 
-    
+    /*Calcula la cantidad de procesadores de la máquina actual*/
     int cores = sysconf(_SC_NPROCESSORS_CONF);
 
     pthread_t t[cores];

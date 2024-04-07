@@ -36,20 +36,18 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
         no nos avisa más hasta que volvamos a activarlo.
         Acordarse de volver a activarlo con epoll_ctl(epollfd, EPOLL_CTL_MOD. sockfd, &ev).*/
     /*EPOLLRDHUP: Se activa cuando un cliente corta la conexión*/
+
     struct epoll_event ev;
-    struct data_ptr* d_ptr = memc_alloc(mem,sizeof(struct data_ptr), MALLOC, NULL); //Liberar esto al final.
+    struct data_ptr* d_ptr = memc_alloc(mem,sizeof(struct data_ptr), MALLOC, NULL);
 
     assert(d_ptr != NULL);
     d_ptr->fd = sockfd;
     d_ptr->text_or_binary = mode;
     if (mode == 0){
-        d_ptr->cant_comm_ptr = 0;
         d_ptr->actual_pos_arr = 0;
-        d_ptr->delimit_pos = memc_alloc(mem, 4*N_COMMANDS, MALLOC, NULL); 
         d_ptr->binary = NULL;
         d_ptr->command = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
         d_ptr->missing = 0;
-        d_ptr->readed = 0;
         d_ptr->to_complete = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
         d_ptr->pos_to_complete = 0;
         d_ptr->is_command = 0;
@@ -67,7 +65,6 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
         d_ptr->binary->dato = NULL;
         d_ptr->binary->key = NULL;
         d_ptr->binary->commands = memc_alloc(mem, 5, MALLOC, NULL);
-        d_ptr->delimit_pos = NULL;        
     }
     ev.data.ptr = d_ptr;
     
@@ -93,7 +90,7 @@ void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     if(!ptr->text_or_binary){
         close(ptr->fd);
         free(ptr->command);
-        free(ptr->delimit_pos);
+        //free(ptr->delimit_pos);
         free(ptr->to_complete);
     }
     else{
@@ -157,7 +154,7 @@ void* epoll_monitor(void* args){
                 if (!ptr->text_or_binary){
                     /*Es un cliente en modo texto*/
                     /*Este cliente no es nuevo por lo que nos hará consultas.*/
-                    resp = text2(e_m_struct, evlist);
+                    resp = text_consume(e_m_struct, evlist);
 
                 }
                 else{

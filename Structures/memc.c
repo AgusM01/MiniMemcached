@@ -131,7 +131,6 @@ int memc_eviction(memc_t mem) {
 
     //printf("Nodeos Izq a Der : %d.\n", queue_test(mem->queue->lru, LEFT));
     //printf("Nodeos Der a Izq : %d.\n", queue_test(mem->queue->mru, RIGHT));
-    printf("keys %ld.\n", stat_get(mem->keys));
     // Mientras la queue tenga nodos para liberar y le memoria
     // liberada sea menor que el tamaño definido.
     while(memory < D_MEMORY_BLOCK && (tbd = queue_dqlru(mem->queue))) {
@@ -183,41 +182,28 @@ void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea) {
 
     if (ret == NULL){
         //perror("Antes del loop");
-        printf("Pedí %ld bytes.\n",save_bytes);
         while ((ret == NULL) && flag) { // ret == NULL
             // REGIÓN CRÍTICA 
             //puts("Holanda");
             //bytes = save_bytes;
             if(memc_eviction(mem) == -1){
-                puts("me dio -1");
                 flag = 0;
             }
             
             switch (fun) {
                 case MALLOC:
-                    puts("hago malloc");
                     ret = malloc(save_bytes);
-                    printf("malloc ret: %p\n",ret);
-                    printf("malloc bytes: %ld\n", save_bytes);
                     break;
                 case CALLOC:
-                    puts("hago calloc");
                     ret = calloc(save_bytes, 8);
-                    printf("malloc bytes: %d\n", (int)save_bytes);
-                    printf("calloc ret: %p\n",ret);
                     break;
                 case REALLOC:
-                    puts("hago ralloc");
                     ret = realloc(rea , save_bytes);
-                    printf("ralloc bytes: %d\n", (int)save_bytes);
-                    printf("realloc ret: %p\n",ret);
                     break;
             }
         }
 
         if(ret == NULL) {
-            printf("KEYS: %d\n", *(int*)mem->keys);
-            perror("memc_eviction");
             exit(-1);
         }
     }
