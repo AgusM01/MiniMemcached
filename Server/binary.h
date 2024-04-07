@@ -1,6 +1,9 @@
 #ifndef __BINARY_H__
 #define __BINARY_H__
 
+#define CAST_DATA_PTR_TEXT ((struct data_ptr_text*)evlist->data.ptr)
+#define CAST_DATA_PTR_BINARY ((struct data_ptr_binary*)evlist->data.ptr)
+
 /*
  * Consume el binario del fd de un cliente.
  * Realiza operaciones que previenen que no llegue la totatildad del mensaje 

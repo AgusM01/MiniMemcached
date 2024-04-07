@@ -4,8 +4,6 @@
 #include "epoll.h"
 
 #define MAX_CHAR 2048
-#define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
-#define CAST_DATA_PTR_BINARY CAST_DATA_PTR->binary
 
 /*Funcion que se encarga de responder pedidos del modo texto*/
 int manage_txt_client   (struct args_epoll_monitor* e_m_struct, 

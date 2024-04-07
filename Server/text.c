@@ -15,8 +15,6 @@
 
 #define MAX_CHAR 2048
 #define N_COMMANDS 10
-#define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
-#define CAST_DATA_PTR_BINARY CAST_DATA_PTR->binary
 #define DELIMITER " \n"
 
 char** text_parser(char* text, int* cant_comm, char* delimiter, memc_t mem){
@@ -52,8 +50,8 @@ int text_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
     int cant_comm;
     int bye;
 
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
+    struct data_ptr_text* ptr;
+    ptr = CAST_DATA_PTR_TEXT;
 
     /*La idea es: leer 2048, responder todos los pedidos, si hay alguno cortado, meterlo al epoll y esperar que llegue completo.*/
 

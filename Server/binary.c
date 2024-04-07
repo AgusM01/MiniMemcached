@@ -15,8 +15,7 @@
 #include "binary.h"
 #include "epoll.h"
 
-#define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
-#define CAST_DATA_PTR_BINARY CAST_DATA_PTR->binary
+
 
 int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
     
@@ -30,7 +29,7 @@ int binary_consume(struct args_epoll_monitor* e_m_struct, struct epoll_event* ev
     /*En la primera vez consume el primer comando (PUT/GET/DEL/...)*/
     if (ptr_bin->binary_to_read_commands == 5){
 
-        resp = recv(CAST_DATA_PTR->fd, ptr_bin->commands, 1,0);        
+        resp = recv(CAST_DATA_PTR_BINARY->fd, ptr_bin->commands, 1,0);        
         if (resp <= 0){
             if (resp == -1){
                 quit_epoll(e_m_struct, evlist);
@@ -129,7 +128,7 @@ int read_length(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
 
     pos = 5 - ptr_bin->binary_to_read_commands;
 
-    resp = recv(CAST_DATA_PTR->fd, (ptr_bin->commands + pos), ptr_bin->binary_to_read_commands, 0); 
+    resp = recv(CAST_DATA_PTR_BINARY->fd, (ptr_bin->commands + pos), ptr_bin->binary_to_read_commands, 0); 
         if (resp <= 0){
             if (resp == -1){
                 quit_epoll(e_m_struct, evlist);
@@ -194,7 +193,7 @@ int read_content(struct args_epoll_monitor* e_m_struct, struct epoll_event* evli
         pos = ptr_bin->length_dato - ptr_bin->to_consumed;
     }
     
-    resp = recv(CAST_DATA_PTR->fd, content + pos, ptr_bin->to_consumed, 0);
+    resp = recv(CAST_DATA_PTR_BINARY->fd, content + pos, ptr_bin->to_consumed, 0);
     if (resp <= 0){
         if (resp == -1){
             quit_epoll(e_m_struct, evlist);

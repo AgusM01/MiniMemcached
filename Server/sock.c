@@ -40,8 +40,9 @@ void sock_creation(int* sockfd, int port_num){
 /*Conecta a un nuevo cliente.*/
 void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist, int mode){
 
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
+    int* pointer = evlist->data.ptr;
+    int who_fd = *pointer;
+
     
     int client_sockfd;
     struct epoll_event ev;
@@ -59,7 +60,7 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     
     if (client_sockfd == -1){
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)){            
-            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, ptr->fd, &ev);
+            epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, who_fd, &ev);
             return;
         }
         else{
@@ -69,10 +70,10 @@ void new_client(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlis
     }
 
     /*Vuelve a meter al fd que acepta clientes*/
-    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, ptr->fd, &ev);
+    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, who_fd, &ev);
     
     /*Mete al fd nuevo*/
-    epoll_add(client_sockfd, e_m_struct->epollfd, ptr->text_or_binary, e_m_struct->mem);
+    epoll_add(client_sockfd, e_m_struct->epollfd, mode, e_m_struct->mem);
 
     return;
 }

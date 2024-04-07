@@ -4,11 +4,16 @@
 #include "../Structures/memc.h"
 #include <sys/epoll.h>
 
+#define CAST_DATA_PTR_TEXT ((struct data_ptr_text*)evlist->data.ptr)
+#define CAST_DATA_PTR_BINARY ((struct data_ptr_binary*)evlist->data.ptr)
+
 /*Estructura utilizada para controlar los fd conectados al protocolo binario*/
 struct data_ptr_binary{
+    int fd;
+    int text_or_binary; /*0 para text, 1 para binary*/
     int binary_to_read_commands; /*Comandos que quedan para leer*/
     int comandos_leidos;
-    unsigned char* commands; /*Aca esta raro*/
+    unsigned char* commands; 
     char* key;
     char* dato;
     int length_key;
@@ -17,11 +22,8 @@ struct data_ptr_binary{
     int data_or_key;
 };
 
-/*Estructura "padre" utilizada para controlar los fd del modo texto.
- * También guardan la estructura binaria solo que no la utilizan. 
- * Esto es ya que de lo contrario no puedo saber de que protocolo provienen
- * los fd que devuelve el epoll_wait*/
-struct data_ptr {
+/*Estructura utilizada para controlar los fd conectados al protocolo de texto */
+struct data_ptr_text {
     int fd;
     int text_or_binary; /*0 para text, 1 para binary*/
     int actual_pos_arr; /*Posicion actual del array delimit_pos*/
@@ -31,7 +33,6 @@ struct data_ptr {
     int pos_to_complete;
     int is_command;
     int prev_pos_arr;
-    struct data_ptr_binary* binary;
 };
 
 

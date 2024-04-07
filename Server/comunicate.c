@@ -9,10 +9,6 @@
 #include <errno.h>
 #include "comunicate.h"
 
-#define MAX_CHAR 2048
-#define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
-#define CAST_DATA_PTR_BINARY CAST_DATA_PTR->binary
-
 int writen(int fd, const void *buf, int len)
 {
 	int i = 0, rc;

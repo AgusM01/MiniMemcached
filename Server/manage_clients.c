@@ -33,8 +33,8 @@ int manage_txt_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     int command = -1;
     int len_stat_buf;
 
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
+    struct data_ptr_text* ptr;
+    ptr = CAST_DATA_PTR_TEXT;
 
     /*Checkeo si la cantidad de comandos es correcta*/  
     if (cant_comm == 0){
@@ -215,9 +215,6 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     stats_t stats;
     char stat_buf[150];
     int len_stat_buf = 0;
-
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
     
     struct data_ptr_binary* ptr_bin;
     ptr_bin = CAST_DATA_PTR_BINARY;
@@ -230,9 +227,9 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
                         ptr_bin->dato,
                         ptr_bin->length_key,
                         ptr_bin->length_dato,
-                        ptr->text_or_binary);
+                        ptr_bin->text_or_binary);
         
-        snd = writen(ptr->fd, &ok, 1);
+        snd = writen(ptr_bin->fd, &ok, 1);
         if (snd == -1)
             perror("snd_put_binary");
         if (snd != 0){
@@ -250,11 +247,11 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
                         ptr_bin->key,
                         ptr_bin->length_key,
                         (void**)&buf,
-                        ptr->text_or_binary);
+                        ptr_bin->text_or_binary);
         if (!res){
 
             /*No encontró la clave*/
-            snd = writen(ptr->fd, &enotfound, 1);
+            snd = writen(ptr_bin->fd, &enotfound, 1);
             if (snd == -1)
                 perror("error_send");
             if (snd != 0){
@@ -267,21 +264,21 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             /*Encontré la clave*/
             len = htonl(res);
             
-            snd = writen(ptr->fd, &ok, 1);
+            snd = writen(ptr_bin->fd, &ok, 1);
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 free(buf);
                 return -1;
             }
 
-            snd = writen(ptr->fd, (void*)&len, 4);
+            snd = writen(ptr_bin->fd, (void*)&len, 4);
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 free(buf);
                 return -1;
             }
             
-            snd = writen(ptr->fd, buf, res);
+            snd = writen(ptr_bin->fd, buf, res);
             if (snd != 0){
                 quit_epoll(e_m_struct, evlist);
                 free(buf);
@@ -300,10 +297,10 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         res = memc_del(e_m_struct->mem,
                         ptr_bin->key,
                         ptr_bin->length_key,
-                        ptr->text_or_binary);
+                        ptr_bin->text_or_binary);
 
         if (res == -1){
-            snd = writen(ptr->fd, &enotfound, 1);
+            snd = writen(ptr_bin->fd, &enotfound, 1);
             if (snd == -1)
                 perror("error_send");
             if (snd != 0){
@@ -312,7 +309,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             }
         }
         else{
-            snd = writen(ptr->fd, &ok, 1);
+            snd = writen(ptr_bin->fd, &ok, 1);
             if (snd == -1)
                 perror("error_send");
             if (snd != 0){
@@ -333,7 +330,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
 
         len = htonl(len_stat_buf);
         
-        snd = writen(ptr->fd, &ok, 1);
+        snd = writen(ptr_bin->fd, &ok, 1);
         if (snd == -1)
             perror("error_send");
         if (snd != 0){
@@ -341,7 +338,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
             return -1;
         }
         
-        snd = writen(ptr->fd, (void*)&len, 4);
+        snd = writen(ptr_bin->fd, (void*)&len, 4);
         if (snd == -1)
             perror("error_send");
         if (snd != 0){
@@ -350,7 +347,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
         }
         
         
-        snd = writen(ptr->fd, &stat_buf, strlen(stat_buf));
+        snd = writen(ptr_bin->fd, &stat_buf, strlen(stat_buf));
         if (snd == -1)
             perror("error_send");
         if (snd != 0){
@@ -363,7 +360,7 @@ int manage_bin_client(struct args_epoll_monitor* e_m_struct, struct epoll_event*
     /*Comando erróneo*/
     if (command == -1){
 
-        snd = writen(ptr->fd, &einval, 1);
+        snd = writen(ptr_bin->fd, &einval, 1);
         if (snd == -1)
             perror("error_send");
         if (snd != 0){

@@ -4,6 +4,8 @@
 #include "../Structures/memc.h"
 #include "epoll.h"
 
+#define CAST_DATA_PTR_TEXT ((struct data_ptr_text*)evlist->data.ptr)
+#define CAST_DATA_PTR_BINARY ((struct data_ptr_binary*)evlist->data.ptr)
 
 /*  
     * Toma un string, un delimitador y un puntero a int

@@ -15,8 +15,6 @@
 #define MAX_EVENTS 1
 #define MAX_CHAR 2048
 #define N_COMMANDS 10
-#define CAST_DATA_PTR ((struct data_ptr*)evlist->data.ptr)
-#define CAST_DATA_PTR_BINARY CAST_DATA_PTR->binary
 
 void epoll_initiate(int* epollfd){
 
@@ -38,35 +36,36 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
     /*EPOLLRDHUP: Se activa cuando un cliente corta la conexión*/
 
     struct epoll_event ev;
-    struct data_ptr* d_ptr = memc_alloc(mem,sizeof(struct data_ptr), MALLOC, NULL);
-
-    assert(d_ptr != NULL);
-    d_ptr->fd = sockfd;
-    d_ptr->text_or_binary = mode;
-    if (mode == 0){
+    
+    if (!mode){
+        struct data_ptr_text* d_ptr = memc_alloc(mem,sizeof(struct data_ptr_text), MALLOC, NULL);
+        assert(d_ptr != NULL);
+        d_ptr->fd = sockfd;
+        d_ptr->text_or_binary = mode;
         d_ptr->actual_pos_arr = 0;
-        d_ptr->binary = NULL;
         d_ptr->command = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
         d_ptr->missing = 0;
         d_ptr->to_complete = memc_alloc(mem, MAX_CHAR + 1, MALLOC, NULL);
         d_ptr->pos_to_complete = 0;
         d_ptr->is_command = 0;
         d_ptr->prev_pos_arr = 0;
+        ev.data.ptr = d_ptr;
     }
-    if (mode == 1){
+    else{
         struct data_ptr_binary* binary = memc_alloc(mem, sizeof(struct data_ptr_binary), MALLOC, NULL);
-        d_ptr->binary = binary;
-        d_ptr->binary->binary_to_read_commands = 5;
-        d_ptr->binary->length_key = 0;
-        d_ptr->binary->comandos_leidos = 0;
-        d_ptr->binary->length_dato = 0;
-        d_ptr->binary->to_consumed = 0;
-        d_ptr->binary->data_or_key = 0;
-        d_ptr->binary->dato = NULL;
-        d_ptr->binary->key = NULL;
-        d_ptr->binary->commands = memc_alloc(mem, 5, MALLOC, NULL);
+        binary->fd = sockfd;
+        binary->text_or_binary = mode;
+        binary->binary_to_read_commands = 5;
+        binary->length_key = 0;
+        binary->comandos_leidos = 0;
+        binary->length_dato = 0;
+        binary->to_consumed = 0;
+        binary->data_or_key = 0;
+        binary->dato = NULL;
+        binary->key = NULL;
+        binary->commands = memc_alloc(mem, 5, MALLOC, NULL);
+        ev.data.ptr = binary;
     }
-    ev.data.ptr = d_ptr;
     
 
     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP;     
@@ -79,28 +78,30 @@ void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
 
 void quit_epoll(struct args_epoll_monitor* e_m_struct, struct epoll_event* evlist){
 
-    struct data_ptr* ptr;
-    ptr = CAST_DATA_PTR;
+    
 
-    struct data_ptr_binary* ptr_bin;
-    ptr_bin = CAST_DATA_PTR_BINARY;
+    int* pointer;
+    pointer = (int*)evlist->data.ptr;
+    int mode = *(pointer + 1);
 
-    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, ptr->fd, evlist);
-
-    if(!ptr->text_or_binary){
+    if (!mode){
+        struct data_ptr_text* ptr;
+        ptr = CAST_DATA_PTR_TEXT;
+        epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_DEL, ptr->fd, evlist);
         close(ptr->fd);
         free(ptr->command);
-        //free(ptr->delimit_pos);
         free(ptr->to_complete);
+        free(ptr);
     }
     else{
+        struct data_ptr_binary* ptr;
+        ptr = CAST_DATA_PTR_BINARY;
         close(ptr->fd);
-        free(ptr_bin->commands);
-        free(ptr_bin->dato);
-        free(ptr_bin->key);
-        free(ptr_bin);
+        free(ptr->commands);
+        free(ptr->dato);
+        free(ptr->key);
+        free(ptr);
     }
-    free(ptr);
     return;
 }
 
@@ -129,8 +130,11 @@ void* epoll_monitor(void* args){
             a = epoll_wait(e_m_struct->epollfd, evlist, MAX_EVENTS, -1);
         }while(a < 0 && errno == EINTR);
         
-        struct data_ptr* ptr;
-        ptr = CAST_DATA_PTR;
+        int* pointer;
+        pointer = (int*)evlist->data.ptr;
+        
+        int who_fd = *pointer;
+        int mode_fd = *(pointer + 1); 
 
         /*Tenemos un fd disponible para lectura.*/
       
@@ -141,17 +145,24 @@ void* epoll_monitor(void* args){
             quit_epoll(e_m_struct, evlist);
         }
         else{
+            /*Si es el fd de algún socket del server debemos atender a un nuevo cliente.*/
+            if (who_fd == e_m_struct->sockfd_text){
+                struct data_ptr_text* ptr;
+                ptr = CAST_DATA_PTR_TEXT;
 
-            /*Si es el fd del socket del server debemos atender a un nuevo cliente.*/
-            if ((ptr->fd == e_m_struct->sockfd_text) ||
-                (ptr->fd == e_m_struct->sockfd_binary)){
-                
+                /*Aceptamos al nuevo cliente*/                
+                new_client(e_m_struct, evlist, ptr->text_or_binary);
+            }
+            else if (who_fd == e_m_struct->sockfd_binary){
+                struct data_ptr_binary* ptr;
+                ptr = CAST_DATA_PTR_BINARY;
+
                 /*Aceptamos al nuevo cliente*/
                 new_client(e_m_struct, evlist, ptr->text_or_binary);
             }
             else{
                 int resp = 0;
-                if (!ptr->text_or_binary){
+                if (!mode_fd){
                     /*Es un cliente en modo texto*/
                     /*Este cliente no es nuevo por lo que nos hará consultas.*/
                     resp = text_consume(e_m_struct, evlist);
@@ -167,7 +178,7 @@ void* epoll_monitor(void* args){
                     struct epoll_event ev;
                     ev.events = EPOLLIN | EPOLLONESHOT | EPOLLRDHUP; 
                     ev.data.ptr = evlist->data.ptr;
-                    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR->fd, &ev);
+                    epoll_ctl(e_m_struct->epollfd, EPOLL_CTL_MOD, CAST_DATA_PTR_TEXT->fd, &ev);
                 }
             }   
         }
