@@ -2,7 +2,7 @@
 
 # Definición de variables
 CC = gcc
-CFLAGS = -Wall -Werror -g -pthread 
+CFLAGS = -Wall -lcap -Werror -g -pthread 
 TARGET = server 
 STRUCTURES = Structures/memc.c Structures/memc_node.c Structures/memc_queue.c Structures/memc_table.c 
 SERVER = Server/text.c Server/manage_clients.c Server/comunicate.c Server/binary.c Server/epoll.c Server/sock.c 
@@ -15,10 +15,12 @@ OBJECTS = $(MAIN:.c=.o) $(SERVER:.c=.o) $(STRUCTURES:.c=.o) $(UTILS:.c=.o) $(CON
 
 # Regla por defecto
 all: $(TARGET) 
+	sudo setcap 'cap_net_bind_service=ep' $(TARGET)
 
 # Regla para construir el programa
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) -lm
+
 
 # Regla para limpiar los archivos generados
 clean:
