@@ -1,3 +1,4 @@
+#include <linux/capability.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -9,8 +10,8 @@
 #include "Structures/memc.h"
 #include <sys/epoll.h>
 
-#define PORT_NUM_TEXT   8888
-#define PORT_NUM_BIN    8889
+#define PORT_NUM_TEXT   888
+#define PORT_NUM_BIN    889
 
 /*Funcion encargada de ejecutar el server*/
 int main(int argc, char* argv[]){
@@ -28,12 +29,12 @@ int main(int argc, char* argv[]){
     int sockfd_binary;; /*Este seria el socket binario -> 9999 testing*/
     int epollfd; /*fd referente a la instancia de epoll*/
 
-    memc_t mem = memc_init((HasFunc)hash_len, 1000000, 500);
-
-    /*Crea los sockets y devuelve su fd ya bindeado y en escucha*/
     sock_creation(&sockfd_text, PORT_NUM_TEXT);
-
     sock_creation(&sockfd_binary, PORT_NUM_BIN);
+
+    drop_privileges();
+
+    memc_t mem = memc_init((HasFunc)hash_len, 1000000, 500);
 
     /*Inicia la instancia de epoll y devuelve el fd que hace referencia a la misma*/
     epoll_initiate(&epollfd);

@@ -12,6 +12,8 @@
 
 size_t limit_mem(size_t bytes);
 
+void drop_privileges();
+
 unsigned hash_len(char* wrd, int len);
 
 unsigned hash(char* wrd);
