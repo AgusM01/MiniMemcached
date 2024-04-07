@@ -10,10 +10,10 @@ struct LightSwitch {
 
 ls_t* ls_init() {
     ls_t* new_ls; 
-    assert((new_ls = malloc(sizeof(ls_t))));
-    assert((new_ls->mutex = malloc(sizeof(sem_t))));
+    (new_ls = malloc(sizeof(ls_t)));
+    (new_ls->mutex = malloc(sizeof(sem_t)));
 
-    assert(!sem_init(new_ls->mutex, 0, 1));
+    sem_init(new_ls->mutex, 0, 1);
     new_ls->count = 0;
 
     return new_ls;
@@ -27,25 +27,25 @@ void ls_destroy(ls_t* ls) {
 
 /*Lectores / Escritores*/
 void ls_lock(ls_t* ls, sem_t* sem) {
-    assert(!sem_wait(ls->mutex)); // Entro a la habitacion
+    sem_wait(ls->mutex); // Entro a la habitacion
         
     ls->count++; // Me anoto que entro
 
     if (ls->count == 1) // Soy el unico
-        assert(!sem_wait(sem)); // No quiero que entren escritores (desalojo)
+        sem_wait(sem); // No quiero que entren escritores (desalojo)
 
-    assert(!sem_post(ls->mutex));   // Modifique contador (Region Critica).
+    sem_post(ls->mutex);   // Modifique contador (Region Critica).
                                     // Dejo que entre otro.
 }
 
 void ls_unlock(ls_t* ls, sem_t* sem) {
-    assert(!sem_wait(ls->mutex));
+    sem_wait(ls->mutex);
         
     ls->count--;
 
     if (ls->count == 0)
-        assert(!sem_post(sem)); // Se fueron todos lectores, 
+        sem_post(sem); // Se fueron todos lectores, 
                                 // dejo que entren escritores (desalojo).
 
-    assert(!sem_post(ls->mutex));
+    sem_post(ls->mutex);
 }

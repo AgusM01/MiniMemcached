@@ -10,8 +10,8 @@
 #include "Structures/memc.h"
 #include <sys/epoll.h>
 
-#define PORT_NUM_TEXT   888
-#define PORT_NUM_BIN    889
+#define PORT_NUM_TEXT   8888
+#define PORT_NUM_BIN    8889
 
 /*Funcion encargada de ejecutar el server*/
 int main(int argc, char* argv[]){
@@ -34,7 +34,7 @@ int main(int argc, char* argv[]){
 
     drop_privileges();
 
-    memc_t mem = memc_init((HasFunc)hash_len, 1000000, 500);
+    memc_t mem = memc_init((HasFunc)murmur3_32, 1000000, 500);
 
     /*Inicia la instancia de epoll y devuelve el fd que hace referencia a la misma*/
     epoll_initiate(&epollfd);

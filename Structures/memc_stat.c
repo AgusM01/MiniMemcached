@@ -11,9 +11,9 @@ struct __Stat {
 
 stat_t* stat_init(size_t init_val) {
     stat_t* new_stat;
-    assert((new_stat = malloc(sizeof(struct __Stat))));
-    assert((new_stat->mutex = malloc(sizeof(sem_t))));
-    assert(!sem_init(new_stat->mutex, 0, 1));
+    new_stat = malloc(sizeof(struct __Stat));
+    new_stat->mutex = malloc(sizeof(sem_t));
+    sem_init(new_stat->mutex, 0, 1);
     new_stat->count = init_val;
     return new_stat;
 }
@@ -29,23 +29,23 @@ void stat_add(stat_t* st, size_t n) {
 }
 
 void stat_lock(stat_t* st) {
-    assert(!sem_wait(st->mutex));
+    sem_wait(st->mutex);
 }
 
 void stat_unlock(stat_t *st) {
-    assert(!sem_post(st->mutex));
+    sem_post(st->mutex);
 }
 
 void stat_inc(stat_t *st) {
-    assert(!sem_wait(st->mutex));
+    sem_wait(st->mutex);
     st->count++;
-    assert(!sem_post(st->mutex));
+    sem_post(st->mutex);
 }
 
 void stat_dec(stat_t *st) {
-    assert(!sem_wait(st->mutex));
+    sem_wait(st->mutex);
     st->count--;
-    assert(!sem_post(st->mutex));
+    sem_post(st->mutex);
 }
 
 size_t stat_get(stat_t *st) {
@@ -53,7 +53,7 @@ size_t stat_get(stat_t *st) {
 }
 
 void stat_put(stat_t *st, size_t n){
-    assert(!sem_wait(st->mutex));
+    sem_wait(st->mutex);
     st->count = n;
-    assert(!sem_post(st->mutex));
+    sem_post(st->mutex);
 }

@@ -3,16 +3,6 @@
 #include <string.h>
 #include "memc_node.h"
 
-/*!
- *
- */
-
-
-
-
-/*Tested, no usada*/
-
-
 /*Tested*/
 void node_free(node_t* node) {
   free(node->data_buff);
@@ -88,24 +78,10 @@ node_t* node_arrow(node_t* node, int hq, dir_t dir) {
 
 /*Tested*/
 int node_addhd(int hq, node_t* node, node_t* head) {
-  if ((head == NULL) || head->arrows[hq + LEFT])
-    return -1;
-
   head->arrows[hq + LEFT] = node;
   node->arrows[hq + RIGHT] = head;
   return 0;
 }
-
-// int node_newdata(node_t* node, void* data, int len_data) {
-//   free(node->data_buff);
-
-//   if(!(node->data_buff = malloc(len_data)))
-//     return -1;
-
-//   memcpy(node->data_buff, data, len_data);
-
-//   return 0;
-// }
 
 /*Tested*/
 void node_discc(int hq, node_t* node) {

@@ -5,7 +5,7 @@
 
 table_t table_init(unsigned buckets) {
 
-  table_t table= calloc(buckets, sizeof(node_t*));
+  table_t table = calloc(buckets, sizeof(node_t*));
   assert(table != NULL);
 
   return table;
@@ -23,7 +23,7 @@ void table_destroy(table_t tab, unsigned elements) {
 node_t* table_insert(table_t tbl, node_t* new_node, unsigned i) {
 
   if (tbl[i] != NULL) 
-    assert(node_addhd(HASH, new_node ,tbl[i]) == 0);
+    node_addhd(HASH, new_node ,tbl[i]);
 
   tbl[i] = new_node;
   return new_node;
@@ -38,7 +38,6 @@ int table_search(
     node_t**           ret
     ) {
 
-//  asm("mfence");
   if (tb[i] == NULL)
     return -1;
 
