@@ -10,29 +10,34 @@
 #include "Structures/memc.h"
 #include <sys/epoll.h>
 
-#define PORT_NUM_TEXT   8888
-#define PORT_NUM_BIN    8889
+#define PORT_NUM_TEXT   888
+#define PORT_NUM_BIN    889
 
+#define TRHEAD_MEM 5000000   // Un aproximado de la memoria que ocupa un thread.
 /*Funcion encargada de ejecutar el server*/
 int main(int argc, char* argv[]){
 
     if (argc != 2) {
-        fprintf(stderr, "Bad args -> ./server MEMLIMIT\n");
+        fprintf(stderr, "Bad args -> ./server MEM_SIZE_BYTES \n");
         exit(1);
     }
 
-    size_t byte_limit = atoll(argv[1]);
-    
-    limit_mem(byte_limit);
-
     int sockfd_text; /*Este seria el socket de texto*/
     int sockfd_binary;; /*Este seria el socket binario -> 9999 testing*/
-    int epollfd; /*fd referente a la instancia de epoll*/
 
     sock_creation(&sockfd_text, PORT_NUM_TEXT);
     sock_creation(&sockfd_binary, PORT_NUM_BIN);
 
     drop_privileges();
+
+    /*Calcula la cantidad de procesadores de la máquina actual*/
+    int cores = sysconf(_SC_NPROCESSORS_CONF);
+
+    size_t byte_limit = atoll(argv[1]);
+    
+    limit_mem(byte_limit + cores * TRHEAD_MEM);
+
+    int epollfd; /*fd referente a la instancia de epoll*/
 
     memc_t mem = memc_init((HasFunc)murmur3_32, 1000000, 500);
 
@@ -44,9 +49,6 @@ int main(int argc, char* argv[]){
 
     /*Añade el fd del socket binario creado a la instancia de epoll para monitorearlo.*/
     epoll_add(sockfd_binary, epollfd, 1, mem);
-
-    /*Calcula la cantidad de procesadores de la máquina actual*/
-    int cores = sysconf(_SC_NPROCESSORS_CONF);
 
     pthread_t t[cores];
 

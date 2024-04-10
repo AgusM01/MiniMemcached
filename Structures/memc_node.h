@@ -29,37 +29,28 @@ struct __MemcNode {
 
 typedef struct  __MemcNode node_t;
 
- 
-//node_t* node_init(
-//    void* key,
-    //void* data,
-    //unsigned int len_key,
-    //unsigned int len_data,
-    //mod_t md
-    //);
-
-void node_free(node_t* node);
-
+/* Dada una lista de HASH o QUEUE, libera los nodos */
 void node_frees(int hq, node_t* node);
 
+/* 
+  Busca un nodo dependiendo de la key y retorna el puntero al nodo
+  En caso de no encontrarlo retorna NULL.
+*/
 node_t* node_search(node_t* node, void* key, unsigned int len, mod_t hq);
 
+/*
+  Retorna las direcciones a los nodos conectados en la lista,
+  dependiendo de la estructura.
+*/
 node_t* node_arrow(node_t* node, int hq, dir_t dir);
 
+/*
+  Toma un nodo y lo desconecta (conectando el resto de lista).
+  Setea los punteros a los nodos en NULL.
+*/
 void node_discc(int hq, node_t* node);
 
+/* Agrega un nodo como head de una lista*/
 int node_addhd(int hq, node_t* node, node_t* head);
-
-//int node_getdata(node_t* node, void** buff);
-
-//void node_setdata(node_t* node, void* buff, unsigned len);
-
-//int node_getkey(node_t* node, void** buff);
-
-//void node_setkey(node_t* node, void* buff, unsigned len);
-
-//void node_setmode(node_t* node, mod_t mod);
-
-//mod_t node_getmode(node_t* node);
 
 #endif

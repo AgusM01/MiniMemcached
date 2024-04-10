@@ -27,8 +27,8 @@ struct data_ptr_text {
     int fd;
     int text_or_binary; /*0 para text, 1 para binary*/
     int actual_pos_arr; /*Posicion actual del array delimit_pos*/
-    char* command;
     int missing;
+    char* command;
     char* to_complete;
     int pos_to_complete;
     int is_command;

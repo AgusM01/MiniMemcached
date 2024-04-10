@@ -15,33 +15,7 @@
 #define TEXTO 0
 #define BINARIO 1
 
-struct MemCache {
-    //Estadisticas de la cache.
-    stat_t* puts;
-    stat_t* gets;
-    stat_t* dels;
-    stat_t* keys;
-
-    //Variables para la Tabla Hash.
-    table_t tab;
-    unsigned buckets;
-    HasFunc hash;
-
-    //Variables para la Priority Queue
-    queue_t* queue;
-
-    //Variables para sincronización
-    ls_t* evic;           //---> Estructura para el LightSwitch
-
-    sem_t* evic_mutex;    //---> Mutex para el LightSwitch
-    sem_t* queue_mutex;   //---> Mutex para la Queue
-    sem_t* turnstile;     //---> Mutex para funciones de rehash y memoria. 
-
-    //sem_t* memory_mutex;  //---> Mutex para manejo de memoria
-    sem_t** tab_shield;   //---> tabla de mutex para regiones en la tabla
-    int shield_size;      //---> Cantidad de mutex
-
-};
+struct MemCache ;
 //Opciones para memc_alloc
 typedef enum fun {
     MALLOC,
@@ -100,6 +74,4 @@ int memc_del(
 void memc_stats(memc_t m, stats_t* st);
 
 void* memc_alloc(memc_t mem, size_t bytes, fun_t fun, void* rea);
-
-int memc_eviction(memc_t mem);
 #endif

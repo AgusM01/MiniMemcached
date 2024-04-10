@@ -3,6 +3,7 @@
 #include <string.h>
 #include "memc_node.h"
 
+
 /*Tested*/
 void node_free(node_t* node) {
   free(node->data_buff);
@@ -34,41 +35,6 @@ node_t* node_search(node_t* node, void* key, unsigned int len, mod_t hq) {
   );
 
   return temp;
-}
-
-/*Tested*/
-int node_getdata(node_t* node, void** buff) {
-  *buff = node->data_buff;
-  return node->data_len;
-}
-
-int node_cpydata(node_t* node, void* buff) {
-  memcpy(buff , node->data_buff, node->data_len);
-  return node->data_len;
-}
-
-void node_setdata(node_t* node, void* buff, unsigned len) {
-  node->data_buff = buff;
-  node->data_len = len;
-}
-
-/*Tested*/
-int node_getkey(node_t* node, void** buff) {
-  *buff = node->key_buff;
-  return node->key_len;
-}
-
-void node_setkey(node_t* node, void* buff, unsigned len) {
-  node->key_buff = buff;
-  node->key_len = len;
-}
-
-void node_setmode(node_t* node, mod_t mod) {
-  node->mode = mod;
-}
-
-mod_t node_getmode(node_t* node) {
-  return node->mode;
 }
 
 /*Tested*/
