@@ -144,7 +144,6 @@ void memc_unlock(memc_t mem) {
     sem_post(mem->turnstile);
 }
 
-//TODO -> testear
 int memc_eviction(memc_t mem) {
 
     int count = 0;

@@ -13,12 +13,12 @@
 #define PORT_NUM_TEXT   888
 #define PORT_NUM_BIN    889
 
-#define TRHEAD_MEM 5000000   // Un aproximado de la memoria que ocupa un thread.
+#define MEM_LIMIT 50000000   // Un aproximado de la memoria que ocupa un thread.
 /*Funcion encargada de ejecutar el server*/
 int main(int argc, char* argv[]){
 
-    if (argc != 2) {
-        fprintf(stderr, "Bad args -> ./server MEM_SIZE_BYTES \n");
+    if (argc != 1) {
+        fprintf(stderr, "Bad args\n");
         exit(1);
     }
 
@@ -33,9 +33,7 @@ int main(int argc, char* argv[]){
     /*Calcula la cantidad de procesadores de la máquina actual*/
     int cores = sysconf(_SC_NPROCESSORS_CONF);
 
-    size_t byte_limit = atoll(argv[1]);
-    
-    limit_mem(byte_limit + cores * TRHEAD_MEM);
+    limit_mem(MEM_LIMIT);
 
     int epollfd; /*fd referente a la instancia de epoll*/
 

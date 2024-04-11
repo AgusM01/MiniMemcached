@@ -29,6 +29,9 @@ struct __MemcNode {
 
 typedef struct  __MemcNode node_t;
 
+
+void node_free(node_t* node);
+
 /* Dada una lista de HASH o QUEUE, libera los nodos */
 void node_frees(int hq, node_t* node);
 
