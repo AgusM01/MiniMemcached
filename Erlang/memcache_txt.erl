@@ -6,7 +6,7 @@
 % en modo binario. Devuelve el identificador del proceso que
 % maneja los pedidos al server.
 start(Host) ->
-    {ok, S} = gen_tcp:connect(Host, 8888, [binary, {active, false}]),
+    {ok, S} = gen_tcp:connect(Host, 888, [binary, {active, false}]),
     PidServer = spawn (fun() -> server(S) end),
     PidServer.
 

@@ -10,8 +10,8 @@ Por parte de la estructura, esta consta de una tabla hash y una cola. En la tabl
 
 ## Uso
 
-Para compilar solo basta escribir **make** en la consola.
-Para ejecutar **./server**
+Para compilar solo basta escribir `make` en la consola.
+Para ejecutar `./server`
 
 Consta de dos protocolos, texto y binario.
 
@@ -59,3 +59,6 @@ En el caso de ser un PUT (11):
 
 - 7mo a 10mo byte: Longitud del valor representada en un entero de de 32 bits.
 - 11vo: Valor.
+
+## Interfaz Erlang
+Se posee una interfaz programada en Erlang para el uso del modo binario.
