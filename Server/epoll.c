@@ -24,7 +24,6 @@ void epoll_initiate(int* epollfd){
     
     return;
 }
-
 void epoll_add(int sockfd, int epollfd, int mode, memc_t mem){
 
     /*Ajustamos la configuracion de cada fd a agregar a la instancia de epoll*/
